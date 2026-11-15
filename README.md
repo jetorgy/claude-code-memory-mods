@@ -21,6 +21,7 @@ What I can say in its favour:
 * It is built on libraries that were created by me and a senior developer with more than 15 years of experience. The memory library underneath is [`@automacene/liminal-memory`](https://www.npmjs.com/package/@automacene/liminal-memory).
 * The point of the project is to see whether the same kind of memory system can be built inside Claude Code itself.
 * I use it every day, and I keep measuring it (token counts and similar), so I can compare sessions with and without it. I will add real numbers here once I have them; until then no savings are claimed.
+* It is designed to get out of the way when you test local models yourself: `/local free` releases the GPU memory the mods use, `/local off` does that and keeps them off, and in the default mode the small jobs fall back to Haiku when the GPU is nearly full. Memory recall keeps working without the local models (keyword search only).
 * If something breaks, Claude Code can fix it, and so can any real developer. Issues and corrections are welcome.
 
 ## Install (easiest)
@@ -48,7 +49,7 @@ Then run `/reload-plugins` inside Claude Code. Needs Node 18 or newer and npm. L
 | `/memory-off` / `/memory-on` | Switch the memory mod off or on. It stays that way after a restart. Nothing is deleted. |
 | `/recall <words>` | Search your past sessions. `/recall active`, `/recall stats`, `/recall index` also work. |
 | `/route` | Control the model selector. |
-| `/local on\|off\|auto\|status\|start` | Control the optional local model. |
+| `/local on\|off\|auto\|status\|start\|free` | Control the optional local model. `free` releases its GPU memory now. |
 
 ## The optional local model
 

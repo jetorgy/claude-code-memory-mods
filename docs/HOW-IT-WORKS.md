@@ -42,7 +42,7 @@ A Claude Code conversation can't be cleared and restarted every turn the way a l
 
 * Grades each message and picks a model and effort level by a cost-versus-quality rubric. `/route` controls it.
 * Adds guidance notes: ask short questions when a request is vague, aim for the professional-complete version of what was asked, and **search the web when stuck or when a precise technical fact can't be checked from the files**.
-* The small grading jobs try a **local model** first (`gemma4:e4b` in a private Ollama on port 11435), and fall back to Haiku when it is off, busy or missing. On a card with at least 11.5 GB it forces every layer onto the GPU; on a smaller card it leaves the GPU/CPU split to Ollama. `/local on|off|auto|status|start` controls it.
+* The small grading jobs try a **local model** first (`gemma4:e4b` in a private Ollama on port 11435), and fall back to Haiku when it is off, busy or missing. On a card with at least 11.5 GB it forces every layer onto the GPU; on a smaller card it leaves the GPU/CPU split to Ollama. `/local on|off|auto|status|start|free` controls it. **It stays out of the way of your own LLM work.** In `auto` mode (the default) the small jobs go to Haiku whenever the GPU has under 2.5 GB free, `/local free` drops the mods' models from GPU memory at once, and `/local off` does that and stops using the local model. Otherwise a model stays loaded for 30 minutes after its last use. The mods only ever touch their own two models (`gemma4:e4b`, `nomic-embed-text`) and never unload anything else on that Ollama.
 
 ## subagent-router
 

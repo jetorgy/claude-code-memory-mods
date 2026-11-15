@@ -194,6 +194,18 @@ async function localComplete($: EngineInterface, system: string, prompt: string,
   }
 }
 
+// Hand the GPU back: ask the private Ollama to drop the small models now (keep_alive 0). This lets the
+// user test their own LLM project without these mods holding GPU memory. Only 127.0.0.1:11435 is touched.
+async function localUnload($: EngineInterface): Promise<void> {
+  for (const model of [LOCAL_MODEL, 'nomic-embed-text']) {
+    try {
+      await $.process.run(['curl', '-s', '-m', '3', 'http://127.0.0.1:11435/api/generate', '-d', JSON.stringify({ model, keep_alive: 0 })], { timeoutMs: 4000 })
+    } catch {
+      // not running: nothing to release
+    }
+  }
+}
+
 // One cheap model call: local first (unless off, or the GPU is busy in auto mode), else Haiku.
 // `ok` says whether an answer is usable; a bad local answer falls through to Haiku.
 async function completeSmall(
@@ -328,7 +340,13 @@ export const register: Register = on => {
     const arg = e.args.trim()
     if (arg === 'auto' || arg === 'on' || arg === 'off') {
       localMode = arg
-      return { text: `local model: ${localMode}` }
+      // Off hands the GPU back at once (otherwise the model stays loaded for 30 minutes after its last use).
+      if (arg === 'off') await localUnload($)
+      return { text: `local model: ${localMode}${arg === 'off' ? ' (model unloaded, GPU memory released)' : ''}` }
+    }
+    if (arg === 'free') {
+      await localUnload($)
+      return { text: 'local model unloaded, GPU memory released. It reloads by itself the next time a small job needs it (use /local off to stop that).' }
     }
     if (arg === 'start') {
       const r = await $.process.run(['bash', localEnsure($)], { timeoutMs: 20000 })
