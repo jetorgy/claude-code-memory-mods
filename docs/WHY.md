@@ -23,6 +23,21 @@ Claude Code forgets. Every new session starts blank, so you re-explain your proj
 | Long sessions slowly cost more | Conversations are kept to a fixed size by design |
 | Claude guesses at technical facts | It is told to look them up |
 
+## How this is different from other Claude memory tools
+
+Other options exist, and they are good at what they do. Claude Code's own `CLAUDE.md` files and auto memory hold notes you or Claude write down. Plugins such as [claude-mem](https://emelia.io/hub/persistent-memory-claude-code-claude-mem) capture sessions through hooks and search them later. Services such as Mem0 connect as an MCP server (the model has to decide to call them) and are mostly cloud based, according to [this comparison](https://vectorize.io/articles/claude-code-memory-vs-mem0-vs-hindsight). That is secondhand, and several of those pages are written by competing vendors, so check each project's own docs.
+
+What these mods do differently:
+
+* **It manages the whole conversation, not only recall.** Most memory tools answer "what do we remember?". These also decide what stays in front of Claude: save detail first, compact at 150k, show the last 40 to 80 exchanges verbatim, and tune that window to how fast your sessions fill.
+* **It learns from what went wrong.** Failures, their fixes and your corrections are first-class memories. A memory that fed an answer you called wrong gets weaker; one that keeps proving useful gets stronger; stale ones fade to cold storage instead of piling up.
+* **It is automatic and labelled.** The notes are attached by a hook before Claude answers, so it does not depend on the model remembering to call a memory tool. Each note is marked as memory, not as your request, and a weak match adds nothing.
+* **It stays on your machine.** No cloud memory service, no account, no other server. Its only network address is an optional model on your own computer.
+* **You can audit it.** The installer's setup prompt makes a model read the code before anything runs, the repo has a safety file and checksums, a flight recorder logs every decision, and `/memory-off` stops it instantly.
+* **It is more than memory.** The same bundle picks a cheaper model for small jobs, nudges Claude to ask and to search the web, and caps helper agents.
+
+It is not a replacement for `CLAUDE.md`: keep writing your standing rules there. This sits alongside it and covers what you would never think to write down.
+
 ## Honest expectations
 
 * It helps most if you use Claude Code a lot, across many sessions on related work. On day one your history is whatever the installer imports; it gets better with use.
