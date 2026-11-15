@@ -1,5 +1,7 @@
 # claude-code-memory-mods
 
+**Claude Code forgets between sessions, repeats old mistakes, and loses detail when it compacts. These mods give it a memory of your own past sessions, on your own machine.** [Why you would want this](docs/WHY.md) · [how it works](docs/HOW-IT-WORKS.md)
+
 Three Claude Code mods that give Claude a working memory of your own past sessions, keep long conversations light, and spend models sensibly:
 
 * **session-memory**: a searchable memory of every saved session, recalled by relevance before each message; lessons from past errors; a sliding window of recent exchanges after each compaction; auto-compaction at 150k tokens; `/memory-off` and `/memory-on`.
@@ -50,6 +52,7 @@ node install/install.mjs --uninstall --delete-data   # also deletes the memory
 
 ## More
 
+* [Why you would want this](docs/WHY.md)
 * [How it works](docs/HOW-IT-WORKS.md)
 * [Safety](SAFETY.md)
 * [Setup prompt](SETUP-PROMPT.md)
