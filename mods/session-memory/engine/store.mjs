@@ -47,6 +47,11 @@ export const DEFAULT_CONFIG = {
   maxChars: 2400,
   // Liminal scores run 0..1: a real match is near 0.9, incidental word overlap near 0.25.
   minScore: 0.7,
+  // Local semantic recall next to the keyword recall (embed.mjs). Needs the private Ollama on
+  // 127.0.0.1:11435 and the model downloaded; with neither, recall is keyword-only. false = off.
+  embeddings: true,
+  embedModel: 'nomic-embed-text',
+  embedPrefix: true,
   // 'all' = every project (current one first); 'project' = only the current project.
   scope: 'all',
   // Optional: path fragment -> group name, e.g. {"solidcraft": "CAD"}. Otherwise the group is the

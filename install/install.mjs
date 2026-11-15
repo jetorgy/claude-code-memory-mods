@@ -6,7 +6,7 @@
 //   node install/install.mjs --no-import     install but do not read old sessions yet
 //   node install/install.mjs --autocompact   also set Claude Code's own 150000-token compaction safety net
 //   node install/install.mjs --local-check   report whether this machine can run the optional local model (changes nothing)
-//   node install/install.mjs --pull-model    download the local model (gemma4:e4b, about 9.6 GB) into its own private Ollama
+//   node install/install.mjs --pull-model    download the local models (gemma4:e4b, about 9.6 GB, and nomic-embed-text, about 274 MB) into its own private Ollama
 //   node install/install.mjs --uninstall     take the mods out of settings and delete the installed folders (keeps your memory)
 //   node install/install.mjs --uninstall --delete-data    ...and also delete the memory database
 //   node install/install.mjs --claude-home DIR            use DIR instead of ~/.claude (for testing)
@@ -179,7 +179,7 @@ function validate() {
   const eng = join(MODS_DIR, 'session-memory', 'engine')
   if (DRY || !existsSync(eng)) return
   const env = { ...process.env, SESSION_MEMORY_HOME: MEMORY_HOME }
-  for (const [file, a] of [['window.mjs', ['--status']], ['recall.mjs', ['--q', 'installer smoke test']], ['active.mjs', []]]) {
+  for (const [file, a] of [['window.mjs', ['--status']], ['recall.mjs', ['--q', 'installer smoke test']], ['active.mjs', []], ['embed.mjs', ['--status']]]) {
     const r = run('node', ['--no-warnings', join(eng, file), ...a], { env, cwd: eng, timeout: 60000 })
     if (r.status === 0) ok(`engine/${file} runs`)
     else fail(`engine/${file} did not run: ${(r.stderr || r.stdout || '').trim().split('\n').slice(-2).join(' | ')}`)
@@ -196,12 +196,21 @@ function importSessions() {
     })
     if (r.status === 0) ok('existing sessions imported')
     else fail('session import failed (see the output above)')
+    // Semantic recall: embed the imported memory with the local embedding model, if it is already running.
+    // Nothing is started or downloaded here; without it, recall is keyword-only and fills in later.
+    const e = run('node', ['--no-warnings', join(MODS_DIR, 'session-memory', 'engine', 'embed.mjs')], {
+      env: { ...process.env, SESSION_MEMORY_HOME: MEMORY_HOME }, cwd: join(MODS_DIR, 'session-memory', 'engine'), timeout: 300000,
+    })
+    let n = {}
+    try { n = JSON.parse((e.stdout || '').trim().split('\n').pop()) } catch {}
+    n.total ? ok(`semantic recall: ${n.total} memories embedded locally`) : say('[info]', `semantic recall is not active yet (the local embedding model is not running). Recall uses keywords until it is; see SETUP-PROMPT.md step 5.`)
   })
 }
 
 // ---------- optional local model ----------
 const OLLAMA_HOST = '127.0.0.1:11435'
 const MODEL = 'gemma4:e4b'
+const EMBED_MODEL = 'nomic-embed-text' // about 274 MB; makes recall work by meaning as well as by keyword
 function ollamaBin() {
   return which('ollama') || ['/usr/local/bin/ollama', '/usr/bin/ollama', join(homedir(), '.local', 'bin', 'ollama')].find(p => existsSync(p))
 }
@@ -222,18 +231,22 @@ function localCheck() {
   const t = run('curl', ['-s', '-m', '2', `http://${OLLAMA_HOST}/api/tags`])
   if (t.status === 0 && t.stdout.includes(`"${MODEL}"`)) ok(`${MODEL} is already downloaded in the private server`)
   else say('[info]', `${MODEL} is not downloaded yet. To get it: node install/install.mjs --pull-model   (about 9.6 GB, from Ollama's library)`)
+  if (t.status === 0 && t.stdout.includes(`"${EMBED_MODEL}`)) ok(`${EMBED_MODEL} is already downloaded: recall works by meaning too`)
+  else say('[info]', `${EMBED_MODEL} (about 274 MB) is not downloaded yet; --pull-model gets it. Without it recall uses keywords only.`)
 }
 function pullModel() {
   const bin = ollamaBin()
   if (!bin) return fail('Ollama is not installed. Install it yourself from https://ollama.com/download first, then run --pull-model again.')
   const ensure = join(CLAUDE_HOME, 'local-llm', 'ensure.sh')
   if (!existsSync(ensure)) return fail('the launcher is not installed yet; run the plain install first.')
-  act(`start the private Ollama on ${OLLAMA_HOST}, then download ${MODEL} (about 9.6 GB)`, () => {
+  act(`start the private Ollama on ${OLLAMA_HOST}, then download ${MODEL} (about 9.6 GB) and ${EMBED_MODEL} (about 274 MB)`, () => {
     const e = run('bash', [ensure])
     const last = (e.stdout || '').trim().split('\n').pop()
     if (!/^(up|started)$/.test(last)) return fail(`could not start the private Ollama: ${last}`)
-    const r = run(bin, ['pull', MODEL], { env: { ...process.env, OLLAMA_HOST }, stdio: 'inherit' })
-    r.status === 0 ? ok(`${MODEL} downloaded`) : fail('the download failed (see the output above)')
+    for (const m of [MODEL, EMBED_MODEL]) {
+      const r = run(bin, ['pull', m], { env: { ...process.env, OLLAMA_HOST }, stdio: 'inherit' })
+      r.status === 0 ? ok(`${m} downloaded`) : fail(`the download of ${m} failed (see the output above)`)
+    }
   })
 }
 

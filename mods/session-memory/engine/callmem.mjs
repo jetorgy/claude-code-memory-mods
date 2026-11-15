@@ -41,6 +41,7 @@ const cfg = {
   minShare: topic ? 0.7 : strict ? 0.6 : 0.5,
   maxResults: 5,
   scope: 'all',
+  semantic: false, // tool-call recall stays exact keyword matching: fast, and an error string is not a meaning
 }
 const mem = openMemory()
 const session = arg('--session') || ''

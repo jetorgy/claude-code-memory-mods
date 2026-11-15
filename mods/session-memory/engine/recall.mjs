@@ -14,6 +14,7 @@ import { indexAll } from './index.mjs'
 import { HOME, openMemory, openCold, loadConfig, existsMemory, lookup, loadCorrections, refOf, RECALLS_PATH, COLD_PATH } from './store.mjs'
 import { placeOf, HARNESS_ERROR } from './parse.mjs'
 import { strengthOf } from './strength.mjs'
+import { embedQuery, nearest, cosOf } from './embed.mjs'
 
 const day = ts => new Date(ts).toISOString().slice(0, 10)
 const one = s => (s || '').replace(/\s+/g, ' ').trim()
@@ -90,21 +91,50 @@ function bridges(mem, get, start, qs, shown) {
 
 function readCut() { try { return JSON.parse(readFileSync(join(HOME, 'window-cut.json'), 'utf8')) } catch { return {} } }
 
-async function searchTier(store, cfg, q, qs, need, session, here, now, tier) {
+// The meaning side (embed.mjs), or null when it is off, the local model is not running, or nothing is embedded yet.
+async function semanticSide(q, cfg) {
+  if (cfg.semantic === false || cfg.embeddings === false) return null
+  try {
+    const qv = await embedQuery(q, { cfg, timeoutMs: 1500 })
+    const top = qv ? nearest(qv, cfg, 40) : []
+    return top.length ? { top, cosOf: id => cosOf(qv, id, cfg) } : null
+  } catch { return null }
+}
+
+async function searchTier(store, cfg, q, qs, need, session, here, now, tier, sem) {
   const out = []
   const cut = readCut()
+  const semMin = cfg.semMin ?? 0.7 // cosine at which a memory counts as the same meaning (nomic: unrelated tops out near 0.65)
   for (const pool of cfg.recallPools) {
     // minScore is Liminal's own 0..1 gate: a real match is near 0.9, incidental overlap near 0.25.
     const hits = await store.pool(pool).rank(q, { limit: 15, minScore: cfg.minScore })
-    for (const { node, score } of hits) {
+    const cands = hits.map(({ node, score }) => ({ node, score }))
+    // Memories that mean the same thing in other words: found by meaning alone (keyword score 0).
+    if (sem) {
+      const have = new Set(cands.map(c => c.node.id))
+      for (const { id, cos } of sem.top) {
+        if (cos < semMin) break
+        if (have.has(id) || !store.has(id)) continue
+        const node = store.get(id)
+        if (node.pool === pool) cands.push({ node, score: 0 })
+      }
+    }
+    for (const { node, score } of cands) {
       const m = node.metadata
+      const cos = sem ? sem.cosOf(node.id) : null
+      const meaning = cos !== null && cos >= semMin
       if (forgotten(node.id)) continue // Claude corrected memory: this one is not to be shown
       // This conversation is already in front of the model, except what a compaction pushed out of view
       // (older than the active window's first pair): that is recalled like any other memory.
       if (session && m.session === session && !(cut.session === session && cut.ts && m.ts && m.ts < cut.ts)) continue
       if (pool === 'failure' && HARNESS_ERROR.test(body(node))) continue // a permission outage is not a failure worth recalling
-      if (qs.filter(t => stems(body(node)).has(t)).length < need) continue
-      let s = score * (0.8 + 0.4 * strengthOf(m, now)) // learned: used memories rise, penalized ones sink
+      // A keyword match must share the question's words; one that matches in meaning needs no shared words.
+      if (!meaning && qs.filter(t => stems(body(node)).has(t)).length < need) continue
+      // Meaning can only add to a keyword match, never lower it (a keyword hit with an unrelated-looking
+      // vector keeps its score). A meaning-only find starts at 0.77 (cosine 0.70) and tops out at 0.9.
+      const sc = cos === null ? 0 : Math.max(0, Math.min(1, (cos - 0.5) / 0.3))
+      const base = score >= cfg.minScore ? 1 - (1 - score) * (1 - 0.6 * sc) : 0.5 + 0.4 * sc
+      let s = base * (0.8 + 0.4 * strengthOf(m, now)) // learned: used memories rise, penalized ones sink
       if ((m.project || '').toLowerCase() === here) s *= 1.15
       else if (cfg.scope === 'project') continue
       if (pool === 'failure' && m.fixedBy) s *= 1.15
@@ -137,12 +167,13 @@ export async function recall({ mem, q, cwd = '', session = '', limit, cfg, skip 
   const need = qs.length >= 4 ? Math.ceil(qs.length * (cfg.minShare ?? 0.5)) : qs.length
   const now = Date.now()
   const max = limit ?? cfg.maxResults
-  let scored = await searchTier(mem, cfg, q, qs, need, session, here, now, 'active')
+  const sem = await semanticSide(q, cfg)
+  let scored = await searchTier(mem, cfg, q, qs, need, session, here, now, 'active', sem)
   // Cold storage is the second tier: searched when active memory did not fill the answer.
   let cold = null
   if (scored.length < max && existsSync(COLD_PATH)) {
     cold = openCold()
-    scored = scored.concat(await searchTier(cold, cfg, q, qs, need, session, here, now, 'cold'))
+    scored = scored.concat(await searchTier(cold, cfg, q, qs, need, session, here, now, 'cold', sem))
   }
   const get = lookup(mem, cold)
   scored.sort((a, b) => b.s - a.s || a.node.id.localeCompare(b.node.id))

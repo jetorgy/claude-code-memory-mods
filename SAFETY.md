@@ -30,11 +30,12 @@ It writes nothing anywhere else. There is no `sudo`, no `chmod` beyond making it
 
 ## What it runs
 
-The hooks start only these programs: `node` (its own scripts), `curl` (only to `127.0.0.1:11435`), `nvidia-smi` (read only), `bash` (only its own `ensure.sh`), and `mkdir`, `touch`, `rm -f`, `test` (only for the on/off switch file). All of it is listed by `grep -rn "process.run" mods`.
+Its own scripts use Node's `fetch` for one thing, the local embedding model at `127.0.0.1:11435` (`engine/embed.mjs`), and nothing else. The hooks start only these programs: `node` (its own scripts), `curl` (only to `127.0.0.1:11435`), `nvidia-smi` (read only), `bash` (only its own `ensure.sh`), and `mkdir`, `touch`, `rm -f`, `test` (only for the on/off switch file). All of it is listed by `grep -rn "process.run" mods`.
 
 ## What it sends, and to whom
 
 * **To Anthropic, through your own Claude Code session, as you:** small side jobs (grading how hard your message is, polling effort, researching a repeated error) are sent to Claude models using your normal Claude Code login. That is the same account and the same traffic as when you chat; no other key or service is involved. If a local model is set up, those small jobs go to it instead, on your own machine.
+* **To your own local embedding model (optional):** the text of your remembered lessons, requests and answers (first 1,000 characters each) and each question you ask, so recall can match by meaning. It goes to `127.0.0.1:11435`, a private Ollama on your own computer, and nowhere else. The resulting vectors are stored in `~/.claude/session-memory/embeddings.json` and `embeddings.bin`. Without the local model, none of this happens.
 * **To anyone else:** nothing. The code contains no other web address.
 
 ## Powers worth knowing about (not hidden, but not nothing)

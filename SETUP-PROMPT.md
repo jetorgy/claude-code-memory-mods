@@ -24,7 +24,7 @@ You are helping me install a set of Claude Code mods called **claude-code-memory
 
 Read `SAFETY.md` first. Then actually read the code, not just the list. Open every file under `mods/`, `extras/`, `install/` and `tools/` (skip `node_modules`; there is none yet). For each claim in `SAFETY.md`, find the line of code that backs it up, or tell me where it is wrong. At minimum:
 
-* Search all code for network use (`http`, `fetch`, `curl`, `net.`, `WebFetch`) and list every address and why. Expected: only `127.0.0.1:11435`.
+* Search all code for network use (`http`, `fetch`, `curl`, `net.`, `WebFetch`) and list every address and why. Expected: only `127.0.0.1:11435` (`fetch` appears only in `mods/session-memory/engine/embed.mjs`, for the local embedding model).
 * Search for every program the code starts (`process.run`, `spawn`, `exec`, `child_process`) and list them. Expected: `node`, `curl`, `nvidia-smi`, `bash`, and `mkdir`, `touch`, `rm -f`, `test` for the on/off switch.
 * Search for anything that looks hidden or risky: `eval`, `new Function`, `base64`, `atob`, long encoded strings, `sudo`, writes outside `~/.claude`, reading files outside `~/.claude/projects`, anything that sends file contents anywhere.
 * Read `install/install.mjs` fully. List every file and setting it changes.
@@ -53,7 +53,8 @@ This part is optional. The mods work without it, using Claude Haiku for small jo
 
 1. Run `node install/install.mjs --local-check` and explain the result in plain words: is Ollama installed, is there a GPU, how much memory, how much free disk.
 2. If Ollama is not installed, do not install it. Tell me I can get it from `https://ollama.com/download` if I want, and that I should run its installer myself. Then continue without it.
-3. If Ollama is there, tell me the model is `gemma4:e4b`, about 9.6 GB, from Ollama's own library, and that it runs in a private second Ollama on port 11435 that does not touch any Ollama I already use. Ask permission. Only if I say yes, run `node install/install.mjs --pull-model`.
+3. If Ollama is there, tell me there are two models, both from Ollama's own library: `gemma4:e4b` (about 9.6 GB, does the small grading jobs) and `nomic-embed-text` (about 274 MB, lets recall match by meaning as well as keyword). They run in a private second Ollama on port 11435 that does not touch any Ollama I already use. Ask permission, and say I can take only the small one. Only if I say yes, run `node install/install.mjs --pull-model` (both). If I only want the embedding model, run `OLLAMA_HOST=127.0.0.1:11435 ollama pull nomic-embed-text` after starting the private server with `bash ~/.claude/local-llm/ensure.sh`.
+4. After a download, run `node ~/.claude/my-mods/session-memory/engine/embed.mjs` once (it embeds the imported memory locally; a few seconds per thousand memories) and tell me the count it prints.
 
 ## Finish
 

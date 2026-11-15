@@ -207,5 +207,8 @@ export async function indexAll({ log = () => {} } = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const t0 = Date.now()
   const r = await indexAll({ log: m => console.error(m) })
+  // Then the local embeddings for anything new (quietly nothing when the local model is not running).
+  // A short budget per run: it carries on next time, so a big first backfill spreads over a few runs.
+  try { const { embedMissing } = await import('./embed.mjs'); r.embeddings = await embedMissing({ budgetMs: 6000 }) } catch {}
   console.log(JSON.stringify({ ...r, seconds: (Date.now() - t0) / 1000 }))
 }

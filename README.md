@@ -41,7 +41,7 @@ Then run `/reload-plugins` inside Claude Code. Needs Node 18 or newer and npm. L
 
 ## The optional local model
 
-The small grading jobs can run on a model on your own machine (`gemma4:e4b`, about 9.6 GB, in a private Ollama on port 11435 that never touches any Ollama you already use). It is optional: without it the mods use Claude Haiku. The setup checks your machine first, installs nothing without asking, and `node install/install.mjs --local-check` shows what your machine can do.
+Two small models can run on your own machine, in a private Ollama on port 11435 that never touches any Ollama you already use: `gemma4:e4b` (about 9.6 GB) for the small grading jobs, and `nomic-embed-text` (about 274 MB) so recall matches by meaning as well as by keyword. Both are optional: without the first the mods use Claude Haiku, and without the second recall is keyword-only. The setup checks your machine first, installs nothing without asking, and `node install/install.mjs --local-check` shows what your machine can do.
 
 ## Uninstall
 
