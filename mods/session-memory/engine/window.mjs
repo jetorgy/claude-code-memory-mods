@@ -9,7 +9,7 @@
 //   node window.mjs --status                 print the tuner state
 import { readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
-import { openMemory, existsMemory, HOME } from './store.mjs'
+import { openMemory, existsMemory, isSwitchTalk, HOME } from './store.mjs'
 
 const STATE = join(HOME, 'window-state.json')
 const START_PAIRS = 40, MIN_PAIRS = 10, MAX_PAIRS = 80
@@ -41,7 +41,9 @@ s.turnsSince = 0
 save(s)
 
 const mem = openMemory()
-const reqs = mem.pool('request').list().filter(n => n.metadata.session === session).sort((x, y) => (y.metadata.ts || 0) - (x.metadata.ts || 0)).slice(0, s.pairs).reverse()
+// A pair that is only talk of switching the memory on/off is left out of the window (never replayed).
+const answerOf = r => (r.metadata.lastAnswer ? mem.get(r.metadata.lastAnswer) : r.metadata.answeredBy ? mem.get(r.metadata.answeredBy) : null)
+const reqs = mem.pool('request').list().filter(n => n.metadata.session === session && !isSwitchTalk(`${n.content ?? ''}\n${answerOf(n)?.content ?? ''}`)).sort((x, y) => (y.metadata.ts || 0) - (x.metadata.ts || 0)).slice(0, s.pairs).reverse()
 if (reqs.length === 0) process.exit(0)
 const pairs = reqs.map(r => {
   const ans = r.metadata.lastAnswer ? mem.get(r.metadata.lastAnswer) : r.metadata.answeredBy ? mem.get(r.metadata.answeredBy) : null

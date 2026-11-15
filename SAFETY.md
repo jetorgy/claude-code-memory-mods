@@ -55,7 +55,7 @@ Its own scripts use Node's `fetch` for one thing, the local embedding model at `
 
 ## Switching it off and removing it
 
-* `/memory-off` turns the memory mod off at once, and it stays off after a restart. `/memory-on` turns it back on. Nothing is deleted either way.
+* `/memory-off` turns the memory mod off at once, and it stays off after a restart. `/memory-on` turns it back on. Nothing is deleted either way. Only you can do this, by typing the command: any remembered text about switching it on or off is never shown back to the model, the commands refuse if another mod fires them, and a tool call that tries to run them, or to create or delete the switch file, is denied (`switch_refused` in the flight recorder).
 * `node install/install.mjs --uninstall` removes the mods from your settings and deletes the installed folders. Your memory is kept unless you add `--delete-data`.
 
 ## Honest limits

@@ -31,6 +31,35 @@ let isIndexing = false
 // Off switch. /memory-off creates this file and /memory-on removes it, so the choice survives restarts.
 // It is read once, then remembered until the next reload. While it exists the mod does nothing at all:
 // no recall, no notes, no window, no saving, no auto-compaction (Claude Code's own setting still applies).
+// The switch is the USER's alone: only typing /memory-off or /memory-on does it. Three ways round that are shut:
+//  1. the commands refuse when another mod fires them (the event's origin is not Claude Code itself);
+//  2. a tool call that tries to run the commands through Skill / SlashCommand is denied;
+//  3. a shell command or file write that touches the switch file is denied.
+// And talk of switching it on or off is never shown back from memory (engine/store.mjs isSwitchTalk).
+const SWITCH_VERB = '(?:turn|switch|toggle|set|put|shut|flip)(?: the| session)*'
+const SWITCH_PATTERNS = [
+  /\bmemory ?(?:on|off)\b/,
+  new RegExp(`\\b${SWITCH_VERB} (?:on|off)(?: the| session)* memory\\b`),
+  new RegExp(`\\b${SWITCH_VERB} memory(?: mod| mods| plugin)? (?:on|off)\\b`),
+]
+// Same rules as isSwitchTalk in engine/store.mjs: every non-letter, non-digit counts as a space.
+function switchTalk(text: string): boolean {
+  const t = text.normalize('NFKC').toLowerCase().replace(/[\p{Cf}\p{Mn}]/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ')
+  return SWITCH_PATTERNS.some(p => p.test(t))
+}
+function firedByMod(next: unknown): boolean {
+  const plugin = (next as { origin?: { plugin?: string } } | undefined)?.origin?.plugin
+  return Boolean(plugin) && plugin !== 'engine'
+}
+const NOT_YOURS = 'Only the user can switch the memory on or off, by typing /memory-off or /memory-on themselves. This was not done.'
+function switchAttempt(tool: string, input: Record<string, unknown>): string | null {
+  if (/^(skill|slashcommand)$/i.test(tool) && switchTalk(JSON.stringify(input))) return NOT_YOURS
+  const cmd = typeof input.command === 'string' ? input.command : ''
+  if (tool === 'Bash' && cmd.includes('session-memory/disabled') && (/\b(touch|rm|mv|cp|ln|tee|truncate|install|dd)\b/.test(cmd) || cmd.includes('>'))) return NOT_YOURS
+  const path = typeof input.file_path === 'string' ? input.file_path : ''
+  if (/^(Write|Edit|NotebookEdit)$/.test(tool) && path.endsWith('session-memory/disabled')) return NOT_YOURS
+  return null
+}
 let memoryOff: boolean | null = null
 const offDir = ($: EngineInterface): string => `${$.plugin.root}/../../session-memory`
 const offFlag = ($: EngineInterface): string => `${offDir($)}/disabled`
@@ -269,7 +298,8 @@ export const register: Register = on => {
     return { result: await runEngine($, 'trail.mjs', ['--q', String(e.query ?? ''), '--session', session], RECALL_TIMEOUT_MS * 2) }
   })
 
-  on('command.run', { command: 'memory-off' }, async ($) => {
+  on('command.run', { command: 'memory-off' }, async ($, _e, next) => {
+    if (firedByMod(next)) { rec($, 'switch_refused', { state: 'off', by: 'mod' }); return { text: NOT_YOURS } }
     try {
       const flag = offFlag($)
       await $.process.run(['mkdir', '-p', offDir($)], { timeoutMs: 3000 })
@@ -283,7 +313,8 @@ export const register: Register = on => {
     }
   })
 
-  on('command.run', { command: 'memory-on' }, async ($) => {
+  on('command.run', { command: 'memory-on' }, async ($, _e, next) => {
+    if (firedByMod(next)) { rec($, 'switch_refused', { state: 'on', by: 'mod' }); return { text: NOT_YOURS } }
     try {
       const r = await $.process.run(['rm', '-f', offFlag($)], { timeoutMs: 3000 })
       if (r.exitCode !== 0) return { text: 'session-memory: could not turn it on (could not remove the switch file).' }
@@ -397,6 +428,12 @@ export const register: Register = on => {
   //  AFTER:  attach what memory knows (a saved lesson for this tool, a repeated failure on this
   //          target, or, if the call failed, a known fix for that exact error) before the next step.
   on('tool.call', async ($, e, next) => {
+    // First, and even while the memory is off: the model may not flip the switch by any route.
+    const blocked = switchAttempt(e.tool, e as Record<string, unknown>)
+    if (blocked) {
+      rec($, 'switch_refused', { tool: e.tool, by: 'model' })
+      return { deny: blocked }
+    }
     if (e.tool.startsWith('mcp__session-memory__') || QUIET_TOOLS.has(e.tool) || (await isOff($))) return next(e)
     const { tool: _tool, tool_use_id: _id, ...input } = e as Record<string, unknown>
     let hint: { deny?: string; note?: string; seenFail?: boolean } = {}

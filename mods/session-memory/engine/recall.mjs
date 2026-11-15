@@ -11,7 +11,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { extractKeywords, stem } from '@automacene/liminal-memory'
 import { indexAll } from './index.mjs'
-import { HOME, openMemory, openCold, loadConfig, existsMemory, lookup, loadCorrections, refOf, RECALLS_PATH, COLD_PATH } from './store.mjs'
+import { HOME, openMemory, openCold, loadConfig, existsMemory, lookup, loadCorrections, refOf, isSwitchTalk, RECALLS_PATH, COLD_PATH } from './store.mjs'
 import { placeOf, HARNESS_ERROR } from './parse.mjs'
 import { strengthOf } from './strength.mjs'
 import { embedQuery, nearest, cosOf } from './embed.mjs'
@@ -124,6 +124,7 @@ async function searchTier(store, cfg, q, qs, need, session, here, now, tier, sem
       const cos = sem ? sem.cosOf(node.id) : null
       const meaning = cos !== null && cos >= semMin
       if (forgotten(node.id)) continue // Claude corrected memory: this one is not to be shown
+      if (isSwitchTalk(body(node))) continue // talk of switching the memory on/off is never recalled
       // This conversation is already in front of the model, except what a compaction pushed out of view
       // (older than the active window's first pair): that is recalled like any other memory.
       if (session && m.session === session && !(cut.session === session && cut.ts && m.ts && m.ts < cut.ts)) continue
@@ -236,6 +237,8 @@ export async function recall({ mem, q, cwd = '', session = '', limit, cfg, skip 
       lines.push(`Linked (${label}, ${x.metadata.project}): ${clip(body(x), 100)}`)
       ids.push(x.id)
     }
+    // The whole item, not only the hit: a clean hit can still carry the question, answer or link that mentions it.
+    if (isSwitchTalk([body(hit), body(main), ...lines].join('\n'))) continue
     const s = get(`s:${m.session}`)
     items.push({ r: hit, why, lines, ids, title: s?.metadata?.title ?? null, tier })
     if (items.length >= max) break
@@ -262,6 +265,7 @@ export function handoff({ mem, cold, session, cwd, cfg }) {
   const title = id => get(`s:${id}`)?.metadata?.title
   const asked = [...all('request'), ...all('correction')]
     .filter(n => n.metadata.session !== session && !n.metadata.helper)
+    .filter(n => !isSwitchTalk(`${body(n)}\n${body(get(n.metadata.lastAnswer) ?? get(n.metadata.answeredBy))}`))
     .sort((a, b) => b.metadata.ts - a.metadata.ts)
     .slice(0, cfg.handoffMessages)
     .reverse()
@@ -274,10 +278,10 @@ export function handoff({ mem, cold, session, cwd, cfg }) {
     })
     sections.push(`Most recent messages from earlier sessions (oldest first):\n${lines.join('\n')}`)
   }
-  const lessonText = all('lesson').filter(l => !forgotten(l.id)).map(l => body(l))
+  const lessonText = all('lesson').filter(l => !forgotten(l.id) && !isSwitchTalk(body(l))).map(l => body(l))
   const open = all('failure')
     .filter(f => (f.metadata.count ?? 1) > 1 && !(f.metadata.lastFixed && (f.metadata.lastSeen ?? f.metadata.ts) <= f.metadata.lastFixed))
-    .filter(f => !HARNESS_ERROR.test(body(f))) // a permission prompt is not a real error
+    .filter(f => !HARNESS_ERROR.test(body(f)) && !isSwitchTalk(body(f))) // a permission prompt is not a real error
     .filter(f => !f.metadata.lesson && !lessonText.some(t => f.metadata.tool && t.includes(f.metadata.tool))) // already has a saved lesson
     .sort((a, b) => ((b.metadata.project || '').toLowerCase() === here) - ((a.metadata.project || '').toLowerCase() === here) || strengthOf(b.metadata, now) - strengthOf(a.metadata, now))
     .slice(0, 3)
@@ -287,10 +291,10 @@ export function handoff({ mem, cold, session, cwd, cfg }) {
       return `- ${f.metadata.tool} failed ${f.metadata.count}×, last ${day(f.metadata.lastSeen ?? f.metadata.ts)} in ${f.metadata.project}: ${clip(after(body(f)), 100)}`
     }).join('\n')}`)
   }
-  const saved = all('lesson').filter(l => !forgotten(l.id)).sort((a, b) => ((b.metadata.project || '').toLowerCase() === here) - ((a.metadata.project || '').toLowerCase() === here) || strengthOf(b.metadata, now) - strengthOf(a.metadata, now)).slice(0, 4)
+  const saved = all('lesson').filter(l => !forgotten(l.id) && !isSwitchTalk(body(l))).sort((a, b) => ((b.metadata.project || '').toLowerCase() === here) - ((a.metadata.project || '').toLowerCase() === here) || strengthOf(b.metadata, now) - strengthOf(a.metadata, now)).slice(0, 4)
   if (saved.length) sections.push(`Lessons saved earlier:\n${saved.map(l => { ids.push(l.id); return `- [${l.metadata.project}] ${clip(fixedText(l.id) ?? body(l), 160)} (ref ${refOf(l.id)})` }).join('\n')}`)
   const lessons = all('correction')
-    .filter(c => now - c.metadata.ts < 30 * 864e5)
+    .filter(c => now - c.metadata.ts < 30 * 864e5 && !isSwitchTalk(body(c)))
     .sort((a, b) => ((b.metadata.project || '').toLowerCase() === here) - ((a.metadata.project || '').toLowerCase() === here) || b.metadata.ts - a.metadata.ts)
     .slice(0, 2)
   if (lessons.length) {

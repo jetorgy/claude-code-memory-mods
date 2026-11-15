@@ -4,7 +4,7 @@
 //   node trail.mjs --q "words or session id" [--cwd /path] [--session CURRENT_ID]
 import { existsSync } from 'node:fs'
 import { extractKeywords, stem } from '@automacene/liminal-memory'
-import { openMemory, openCold, existsMemory, lookup, COLD_PATH } from './store.mjs'
+import { openMemory, openCold, existsMemory, lookup, isSwitchTalk, COLD_PATH } from './store.mjs'
 
 const when = ts => (ts ? new Date(ts).toISOString().slice(0, 16).replace('T', ' ') : '?')
 const one = s => (s || '').replace(/\s+/g, ' ').trim()
@@ -50,7 +50,8 @@ export function trailOf(mem, cold, session) {
   for (const f of unfixed.slice(0, 2)) lines.push(`Unfixed: ${clip(body(f).replace(/^[^:]*: /, ''), 100)}`)
   for (const l of all('lesson').slice(0, 3)) lines.push(`Lesson: ${clip(body(l), 140)}`)
   lines.push('For details on any part, use the search tool with words from it.')
-  return lines.join('\n')
+  // Talk of switching the memory on/off is never shown (the summary line stays).
+  return lines.filter((l, i) => i === 0 || !isSwitchTalk(l)).join('\n')
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

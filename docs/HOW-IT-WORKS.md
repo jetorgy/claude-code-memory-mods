@@ -36,7 +36,7 @@ A Claude Code conversation can't be cleared and restarted every turn the way a l
 * **Handoff** between sessions: the first message of a new session gets the last exchanges, unresolved errors and saved lessons.
 * **Lessons.** The `mark` tool saves "when X, do Y" notes; `correct_memory` fixes or forgets a wrong memory on the spot.
 * **Auto-compaction** at 150,000 tokens, through Claude Code's own `/compact`.
-* **Off switch.** `/memory-off` and `/memory-on`. The state is a file (`~/.claude/session-memory/disabled`), so it survives restarts.
+* **Off switch.** `/memory-off` and `/memory-on`. The state is a file (`~/.claude/session-memory/disabled`), so it survives restarts. **Only the user can flip it.** Any talk of switching the memory on or off, in any spelling or with any symbols (`/memory-off`, `memory_off`, `Memory—Off!`, "turn the memory mod off"), is filtered out of everything memory shows back: recall notes, the handoff, the active window, session trails and the search tools. The commands refuse to run if another mod fires them, a tool call that tries them through `Skill` or `SlashCommand` is denied, and so is a shell command or file write that touches the switch file. Every refusal is logged by the flight recorder as `switch_refused`. A few harmless sentences ("memory on the disk") are hidden too; hiding extra is the safe side.
 
 ## model-selector
 

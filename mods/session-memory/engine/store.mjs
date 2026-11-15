@@ -29,6 +29,24 @@ export const MARKS_PATH = join(HOME, 'marks.jsonl')
 export const CORRECTIONS_PATH = join(HOME, 'corrections.json')
 export const loadCorrections = () => { try { return JSON.parse(readFileSync(CORRECTIONS_PATH, 'utf8')) } catch { return {} } }
 export const saveCorrections = c => writeAtomic(CORRECTIONS_PATH, JSON.stringify(c))
+
+// Talk about switching the memory on or off, in any spelling: "/memory-off", "memory off", "Memory_On!",
+// "memory—off", "ｍｅｍｏｒｙ ｏｆｆ", "turn the memory mod off", "switch off memory". Such text is NEVER shown back
+// from memory (recall, handoff, the active window, session trails, the search tools): the off switch is
+// for the user to type, and a remembered "/memory-off" must never read like something to act on.
+// Everything that is not a letter or digit counts as a space (symbols, underscores, hyphens, slashes,
+// zero-width characters), so no punctuation trick gets around it. A few harmless sentences are hidden too
+// ("memory on the disk"); hiding extra is the safe side.
+const SWITCH_VERB = '(?:turn|switch|toggle|set|put|shut|flip)(?: the| session)*'
+const SWITCH_PATTERNS = [
+  /\bmemory ?(?:on|off)\b/,
+  new RegExp(`\\b${SWITCH_VERB} (?:on|off)(?: the| session)* memory\\b`),
+  new RegExp(`\\b${SWITCH_VERB} memory(?: mod| mods| plugin)? (?:on|off)\\b`),
+]
+export function isSwitchTalk(text) {
+  const t = String(text ?? '').normalize('NFKC').toLowerCase().replace(/[\p{Cf}\p{Mn}]/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ')
+  return SWITCH_PATTERNS.some(p => p.test(t))
+}
 // A short stable tag for a node, shown beside each remembered item so it can be named in a correction.
 export const refOf = id => createHash('sha1').update(String(id)).digest('hex').slice(0, 8)
 
