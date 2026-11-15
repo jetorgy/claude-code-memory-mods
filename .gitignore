@@ -1,0 +1,20 @@
+# Never commit anyone's memory or logs.
+node_modules/
+*.bak-*
+*.jsonl
+memory.json
+cold.json.gz
+corrections.json
+marks.jsonl
+recalls.jsonl
+state.json
+toolindex.json
+last-index.json
+window-state.json
+window-cut.json
+disabled
+config.env
+config.json
+images/
+.env
+*.log

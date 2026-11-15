@@ -1,0 +1,5 @@
+{
+  "name": "session-memory",
+  "version": "0.3.0",
+  "description": "Brain-inspired memory of every saved Claude session on Liminal: recalls past work and fixes before each prompt, hands off between sessions, learns from corrections, and gives Claude tools to mark, search, trace sessions and research recurring errors."
+}
