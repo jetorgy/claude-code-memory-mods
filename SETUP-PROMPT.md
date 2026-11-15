@@ -20,7 +20,7 @@ This setup was written and tested **only on Linux Mint 22.3** (Linux kernel, bas
 
 ## Step 1: get the code
 
-1. Ask permission to clone `https://github.com/jetorgy/claude-code-memory-mods` (a few megabytes). Use a brand new empty folder, for example `~/claude-code-memory-mods`, and clone tag `v1.1.0` only: `git clone --depth 1 --branch v1.1.0 https://github.com/jetorgy/claude-code-memory-mods`.
+1. Ask permission to clone `https://github.com/jetorgy/claude-code-memory-mods` (a few megabytes). Use a brand new empty folder, for example `~/claude-code-memory-mods`, and clone tag `v1.1.1` only: `git clone --depth 1 --branch v1.1.1 https://github.com/jetorgy/claude-code-memory-mods`.
 2. Run `git rev-parse HEAD` inside it. If the person who sent me this gave me a commit hash, compare the two and stop if they differ. If I was not given one, tell me the hash so I can check it with them.
 3. Run `tools/verify.sh` (it compares every file with `CHECKSUMS.sha256`). Report the result.
 

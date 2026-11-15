@@ -33,7 +33,7 @@ What I can say in its favour:
 ## Install (by hand)
 
 ```bash
-git clone --depth 1 --branch v1.1.0 https://github.com/jetorgy/claude-code-memory-mods
+git clone --depth 1 --branch v1.1.1 https://github.com/jetorgy/claude-code-memory-mods
 cd claude-code-memory-mods
 tools/verify.sh                          # compare every file with CHECKSUMS.sha256
 node install/install.mjs --dry-run       # shows every change, makes none
