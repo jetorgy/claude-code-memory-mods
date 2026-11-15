@@ -1,6 +1,19 @@
 # How it works
 
-A plain-language tour of what the three mods do and why. Built on [`@automacene/liminal-memory`](https://www.npmjs.com/package/@automacene/liminal-memory), the memory library underneath (pools of memory nodes, scoring and ranking). The ideas come from the "darkmind" project: a brain-inspired memory with a small active window plus long-term memory found by relevance.
+A plain-language tour of what the three mods do and why. Built on [`@automacene/liminal-memory`](https://www.npmjs.com/package/@automacene/liminal-memory), the memory library underneath (see the next section). The ideas come from the "darkmind" project: a brain-inspired memory with a small active window plus long-term memory found by relevance.
+
+## The library underneath
+
+[`@automacene/liminal-memory`](https://github.com/Automacene/liminal-memory) (Apache-2.0, zero dependencies) does the finding. From its own README:
+
+* It keeps content as **nodes** in named **pools** and searches them with ordinary relevance math: **BM25 keyword ranking**, not embeddings. It never calls a language model.
+* It is **deterministic**: the same pool and the same query return the same nodes every time, and you can point at the reason a node came back. Its stated aim is to take the "finding" step away from the model.
+* `rank` gives each hit a **0 to 1 score** with a `minScore` cutoff, so one threshold works for short and long queries. This is what lets a weak match show nothing.
+* Different kinds of content go in **separate pools**, because relevance statistics are per pool. That is why the mods keep requests, answers, thinking, corrections, tool calls, failures, successes, lessons and images apart.
+* Optional **graph edges** record which nodes were recalled together; they never change ranking, and can decay over time.
+* It manages the node lifecycle and nothing else. It does not decide what to store, does not persist by itself, and leaves tagging and content to the caller.
+
+What this repo adds on top is everything else: reading your session files, the recall notes, the reinforcement and decay of memory strength, lessons, the active window, compaction and the commands. The library knows nothing about Claude Code.
 
 ## The big idea
 
