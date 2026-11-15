@@ -4,6 +4,25 @@ Give this whole file to Claude Code (paste it into a new session, or say "follow
 
 ---
 
+## Step 0: Ask how they want this done (do this before anything else)
+
+Before you do anything, ask the user this one question and wait for the answer:
+
+> "Do you want me to set this up **automatically** (I do every step myself: clone, audit, install, download the optional local models, run the commands and import your sessions, and report at the end), or **step by step** (I ask your permission before each step)?"
+
+**If they choose step by step:** follow every section below exactly as written, asking permission where it says to.
+
+**If they choose automatic:** do all the steps below without asking again, including downloads, installs and commands. The following still apply in automatic mode:
+
+1. **Audit first, always.** Read the code and SAFETY.md and run the checksum verification before installing anything. If you find anything suspicious or a checksum does not match, stop and tell the user. Do not install.
+2. **Check the system first.** Follow the "Which system this was tested on" section. If it is not Linux, tell the user what you are changing to fit their system and continue.
+3. **Passwords stay with the user.** If a step needs admin rights (for example installing Ollama), tell the user and let them type the password or run that one command themselves. Never ask for or enter a password.
+4. **Skip what does not fit.** If the machine has no suitable GPU or not enough memory or disk, skip the optional local models and say so. The mods work without them.
+5. **Leave existing setups alone.** Do not touch the user's own Ollama, models or settings beyond the documented merge into `settings.json`, which is backed up first.
+6. **Report at the end.** List everything you downloaded, installed and changed, with sizes and paths, and how to undo it (`node install/install.mjs --uninstall`).
+
+---
+
 You are helping me install a set of Claude Code mods called **claude-code-memory-mods**. Work in this exact order. Do not skip ahead, and do not change the code while setting up.
 
 ## Which system this was tested on (read this, then adapt)
