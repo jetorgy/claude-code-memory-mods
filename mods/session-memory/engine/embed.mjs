@@ -39,7 +39,7 @@ export async function embedBatch(texts, kind, { cfg = loadConfig(), timeoutMs = 
     const res = await fetch(`${BASE}/api/embed`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: cfg.embedModel, input: texts.map(t => prefix(cfg, kind) + t), truncate: true, keep_alive: '30m' }),
+      body: JSON.stringify({ model: cfg.embedModel, input: texts.map(t => prefix(cfg, kind) + t), truncate: true, keep_alive: '5m' }),
       signal: AbortSignal.timeout(timeoutMs),
     })
     if (!res.ok) return null

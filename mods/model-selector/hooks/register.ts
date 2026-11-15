@@ -139,7 +139,8 @@ const LOCAL_URL = 'http://127.0.0.1:11435/api/chat'
 const LOCAL_MODEL = 'gemma4:e4b' // the public Ollama tag (about 9.6 GB)
 const localEnsure = ($: EngineInterface): string => `${$.plugin.root}/../../local-llm/ensure.sh`
 const LOCAL_FULL_GPU_MB = 11500 // a card with at least this much total memory holds the whole model: force every layer onto it
-const LOCAL_MIN_FREE_MB = 2500 // auto mode: skip the local model when the GPU has less free than this
+const LOCAL_MIN_FREE_MB = 4500 // auto mode: the model (about 3.1 GB) plus headroom must fit in the GPU memory nobody else is using
+const LOCAL_IDLE = '3m' // unload this long after the last small job, so an idle session holds no GPU memory
 type LocalMode = 'auto' | 'on' | 'off'
 let localMode: LocalMode = 'auto'
 const localStats = { local: 0, haiku: 0, fellBack: 0 }
@@ -177,7 +178,7 @@ async function localComplete($: EngineInterface, system: string, prompt: string,
     stream: false,
     format: 'json',
     think: false, // gemma4 is a thinking model: left on, it spends the whole token budget thinking and answers nothing
-    keep_alive: '30m',
+    keep_alive: LOCAL_IDLE,
     options: { temperature: 0, num_predict: maxTokens, num_ctx: 4096, ...placement },
     messages: [
       { role: 'system', content: system },
@@ -191,6 +192,18 @@ async function localComplete($: EngineInterface, system: string, prompt: string,
     return typeof t === 'string' ? t : undefined
   } catch {
     return undefined
+  }
+}
+
+// GPU memory held right now by the mods' own two models (not anyone else's on that Ollama).
+async function oursVramMb($: EngineInterface): Promise<number> {
+  try {
+    const r = await $.process.run(['curl', '-s', '-m', '2', 'http://127.0.0.1:11435/api/ps'], { timeoutMs: 3000 })
+    const list = (JSON.parse(r.stdout) as { models?: { name?: string; size_vram?: number }[] }).models ?? []
+    const mine = list.filter(m => m.name === LOCAL_MODEL || m.name === `${LOCAL_MODEL}:latest` || (m.name ?? '').startsWith('nomic-embed-text'))
+    return Math.round(mine.reduce((n, m) => n + (m.size_vram ?? 0), 0) / 1048576)
+  } catch {
+    return 0
   }
 }
 
@@ -221,8 +234,16 @@ async function completeSmall(
   if (localMode !== 'off') {
     why = ''
     if (localMode === 'auto') {
+      // Free memory counting what our own models hold as free: if other work (your own LLM test, a game)
+      // has taken the card, step aside, release ours and use Haiku. It comes back by itself when the card frees up.
       const free = await gpuFreeMb($)
-      if (free !== undefined && free < LOCAL_MIN_FREE_MB) why = `gpu busy (${free} MB free)`
+      if (free !== undefined) {
+        const ours = await oursVramMb($)
+        if (free + ours < LOCAL_MIN_FREE_MB) {
+          why = `gpu busy (${free + ours} MB free besides ours)`
+          if (ours > 0) await localUnload($)
+        }
+      }
     }
     if (!why) {
       const t = await localComplete($, system, prompt, maxTokens)
