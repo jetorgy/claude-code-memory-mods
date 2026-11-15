@@ -12,6 +12,17 @@ Plus a flight recorder (a log of every decision the mods make) and a launcher fo
 
 Built on [`@automacene/liminal-memory`](https://www.npmjs.com/package/@automacene/liminal-memory).
 
+## Read this first: who made this, and how
+
+This is an experiment, and it was **vibe coded**: I am not a programmer, and Claude wrote the code under my direction. I believe code like this should be checked by senior developers before anyone relies on it. **Use it of your own free will, at your own risk.** Read [SAFETY.md](SAFETY.md) and the code first (it is small, about 3,000 lines), and check it against `CHECKSUMS.sha256`.
+
+What I can say in its favour:
+
+* It is built on libraries that were created by me and a senior developer with more than 15 years of experience. The memory library underneath is [`@automacene/liminal-memory`](https://www.npmjs.com/package/@automacene/liminal-memory).
+* The point of the project is to see whether the same kind of memory system can be built inside Claude Code itself.
+* I use it every day, and I keep measuring it (token counts and similar), so I can compare sessions with and without it. I will add real numbers here once I have them; until then no savings are claimed.
+* If something breaks, Claude Code can fix it, and so can any real developer. Issues and corrections are welcome.
+
 ## Install (easiest)
 
 1. Read [SAFETY.md](SAFETY.md). It lists exactly what the code reads, writes and runs.
