@@ -6,6 +6,10 @@ Give this whole file to Claude Code (paste it into a new session, or say "follow
 
 You are helping me install a set of Claude Code mods called **claude-code-memory-mods**. Work in this exact order. Do not skip ahead, and do not change the code while setting up.
 
+## Which system this was tested on (read this, then adapt)
+
+This setup was written and tested **only on Linux Mint 22.3** (Linux kernel, bash, Node 24, an NVIDIA RTX 5070 with `nvidia-smi`, a private Ollama). It has not been run on any other system. **Before step 1, find out what system I am on** (operating system and version, shell, whether I have an NVIDIA GPU, whether Node 18 or newer and `curl` are installed) and tell me. If it is not Linux, or differs in a way that matters, do not follow the steps blindly: say which parts rely on Linux tools (the `test`, `mkdir`, `touch` and `rm` commands used by `/memory-off`, `bash` for the local-model launcher, `nvidia-smi` for the GPU checks, the `tools/*.sh` scripts), propose the smallest change for my system, and ask me before using it. The memory, recall and compaction parts are plain Node scripts. The local model and GPU parts are optional and can simply be skipped.
+
 ## Rules for the whole job
 
 * Nothing is installed, downloaded, or changed until I say so in chat. Ask first and wait for a clear yes before: cloning the repo, running the installer for real, editing `settings.json`, installing Ollama, and downloading a model. Say what, where from, and how big.

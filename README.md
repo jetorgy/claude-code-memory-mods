@@ -40,7 +40,7 @@ node install/install.mjs --dry-run       # shows every change, makes none
 node install/install.mjs                 # installs, validates, imports your sessions
 ```
 
-Then run `/reload-plugins` inside Claude Code. Needs Node 18 or newer and npm. Linux and macOS shells; developed on Linux.
+Then run `/reload-plugins` inside Claude Code. Needs Node 18 or newer and npm. **Tested only on Linux Mint 22.3** (bash, Node 24, an NVIDIA GPU). On any other system, the setup prompt has Claude Code check your system first and adapt the steps with your OK; I have not tested macOS or Windows.
 
 ## Commands
 

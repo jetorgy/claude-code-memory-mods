@@ -184,6 +184,10 @@ function validate() {
     if (r.status === 0) ok(`engine/${file} runs`)
     else fail(`engine/${file} did not run: ${(r.stderr || r.stdout || '').trim().split('\n').slice(-2).join(' | ')}`)
   }
+  // The GPU watcher: one look, no side effects unless the GPU is full and the mods' own model is loaded.
+  const w = run('node', ['--no-warnings', join(MODS_DIR, 'model-selector', 'engine', 'gpuwatch.mjs'), '--once'], { env, timeout: 20000 })
+  if (w.status === 0) ok('model-selector/engine/gpuwatch.mjs runs')
+  else fail(`gpuwatch.mjs did not run: ${(w.stderr || w.stdout || '').trim().split('\n').slice(-2).join(' | ')}`)
 }
 
 function importSessions() {

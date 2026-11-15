@@ -219,6 +219,19 @@ async function localUnload($: EngineInterface): Promise<void> {
   }
 }
 
+// Keep one background watcher alive while the small models are in use: it frees them within seconds when
+// something else takes the GPU (engine/gpuwatch.mjs). It exits by itself when they are no longer loaded.
+let watcherChecked = 0
+async function ensureWatcher($: EngineInterface): Promise<void> {
+  if (Date.now() - watcherChecked < 60000) return
+  watcherChecked = Date.now()
+  try {
+    await $.process.run(['node', `${$.plugin.root}/engine/gpuwatch.mjs`, '--start'], { timeoutMs: 4000 })
+  } catch {
+    // no node or no GPU: the per-message check still works
+  }
+}
+
 // One cheap model call: local first (unless off, or the GPU is busy in auto mode), else Haiku.
 // `ok` says whether an answer is usable; a bad local answer falls through to Haiku.
 async function completeSmall(
@@ -246,6 +259,7 @@ async function completeSmall(
       }
     }
     if (!why) {
+      await ensureWatcher($)
       const t = await localComplete($, system, prompt, maxTokens)
       if (t !== undefined && ok(t)) {
         localStats.local += 1
