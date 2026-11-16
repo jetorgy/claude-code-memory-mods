@@ -1,7 +1,4 @@
 import type { Register } from 'claude-code'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 // Workflow data: stages, their instructions, and the exit gate each must pass. No engine calls here.
 export type Stage = { id: string; title: string; text: string; gate?: { file: string; needs: RegExp[]; say: string } }
 
@@ -45,10 +42,9 @@ export const stageMessage = (slug: string, s: Stage) =>
 
 // Workspace + switch persisted on disk (survives sessions and reloads). Paths relative to the working directory.
 const ROOT = 'research'
-const CLAUDE_HOME = process.env.CLAUDE_HOME || join(homedir(), '.claude')
-const FLAG = join(CLAUDE_HOME, 'research-mod-state.json')
-// research.mjs lives in the sibling session-memory mod: <mods>/research/hooks -> <mods>/session-memory/engine
-const RESEARCH_MJS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'session-memory', 'engine', 'research.mjs')
+const flagPath = ($: any): string => `${$.plugin.root}/../../research-mod-state.json`
+// research.mjs lives in the sibling session-memory mod: <mods>/research -> <mods>/session-memory/engine
+const researchMjs = ($: any): string => `${$.plugin.root}/../session-memory/engine/research.mjs`
 export type State = { slug: string; stage: string; question: string; created: string }
 
 export const slugify = (q: string) =>
@@ -57,9 +53,9 @@ export const today = () => new Date().toISOString().slice(0, 10)
 export const dir = (slug: string) => `${ROOT}/${slug}`
 
 export const isOn = async ($: any): Promise<{ on: boolean; slug?: string }> => {
-  try { return JSON.parse(await $.fs.read(FLAG)) } catch { return { on: false } }
+  try { return JSON.parse(await $.fs.read(flagPath($))) } catch { return { on: false } }
 }
-export const setOn = (flag: boolean, slug: string | undefined, $: any) => $.fs.write(FLAG, JSON.stringify({ on: flag, slug }))
+export const setOn = (flag: boolean, slug: string | undefined, $: any) => $.fs.write(flagPath($), JSON.stringify({ on: flag, slug }))
 
 export const loadState = async ($: any, slug: string): Promise<State | null> => {
   try { return JSON.parse(await $.fs.read(`${dir(slug)}/state.json`)) } catch { return null }
@@ -185,7 +181,7 @@ export const register: Register = on => {
     // Everything logged also becomes research nodes (about a paragraph each), so nothing is lost.
     let nodes = ''
     try {
-      const r = await $.process.run(['node', '--no-warnings', RESEARCH_MJS, '--topic', slug, '--source', `${e.file}.md ${today()}`, '--text', String(e.text ?? '')], { timeoutMs: 20000 })
+      const r = await $.process.run(['node', '--no-warnings', researchMjs($), '--topic', slug, '--source', `${e.file}.md ${today()}`, '--text', String(e.text ?? '')], { timeoutMs: 20000 })
       nodes = r.exitCode === 0 ? ` ${r.stdout.trim()}` : ''
     } catch { /* ingest is best effort */ }
     return { result: `Logged to ${dir(slug)}/${e.file}.md.${nodes}` }
