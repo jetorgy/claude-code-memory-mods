@@ -80,8 +80,8 @@ async function isOff($: EngineInterface): Promise<boolean> {
 const COMPACT_AT = 150000
 const COMPACT_COOLDOWN_MS = 5 * 60 * 1000
 const COMPACT_INSTRUCTIONS =
-  'The full conversation is saved in the user\'s session memory and can be recalled on demand, so keep this summary short. ' +
-  'Keep: the user\'s current goal and where the work stands, decisions made and why, exact file paths, commands and settings in use, ' +
+  'The full conversation is saved in the user\'s session memory and can be recalled on demand, so keep this summary SHORT: a hard limit of 400 words, under 2,500 characters. Aim for bullets, no preamble, no per-file code, no quoting of earlier messages, no list of every tool used. The last exchanges are re-shown in full after the summary, so do not repeat them. ' +
+  'Keep only: the user\'s current goal and where the work stands, decisions made and why, exact file paths, commands and settings in use, ' +
   'open problems and the next step, and the user\'s stated preferences. Drop: exploratory output, long tool results, and failed attempts that were resolved.'
 // The note shown with the next message after a compaction (set by the session.compact hook, and by the
 // mod's own compact call, because Claude Code does not run a plugin's own session.compact hook for it).
@@ -111,6 +111,7 @@ const shownIds = new Set<string>()
 // busy turn cannot get saturated. It resets when the user sends a new message.
 const TURN_ITEMS = 10 // related past items, all lookups together
 const TURN_NOTES = 3 // separate tool-call notes
+let lastAha = '' // the research 'aha' line last shown, so it is not repeated
 let itemsLeft = TURN_ITEMS
 let notesLeft = TURN_NOTES
 // Mid-run topic lookups: their own small budget, refilled by one item every TOPIC_REFILL_CALLS calls.
@@ -169,6 +170,43 @@ async function runEngine($: EngineInterface, script: string, args: string[], tim
   return r.exitCode === 0 ? r.stdout.trim() : `session-memory error: ${r.stderr.trim().slice(0, 400)}`
 }
 
+
+// Saves a web result into the research pool (topic = active research project, else "web").
+async function autoIngest($: EngineInterface, e: Record<string, unknown>, ran: any): Promise<any> {
+  try {
+    const text = String(ran?.text ?? '')
+    if (text.length < 200 || ran?.isError) return ran
+    let slug = ''
+    try { const f = JSON.parse(await $.fs.read('/home/josh/.claude/research-mod-state.json')); if (f?.on && f.slug) slug = String(f.slug) } catch { /* no project */ }
+    const q = String(e.query ?? e.url ?? '')
+    const args = ['--topic', slug || 'web', '--source', q.slice(0, 300), '--session', await $.session.id(), '--path', slug ? `research/${slug}` : 'research/web', '--why', `auto-saved ${String(e.tool)} result`, '--text', text.slice(0, 100000)]
+    void runEngine($, 'research.mjs', args, RECALL_TIMEOUT_MS * 4).catch(() => {})
+    if (e.query) void runEngine($, 'research-map.mjs', ['query', q, '--log'], RECALL_TIMEOUT_MS).catch(() => {})
+  } catch { /* best effort */ }
+  return ran
+}
+
+const repeatHeld = new Set<string>()
+
+async function webTool($: EngineInterface, e: Record<string, unknown>, next: (e: any) => Promise<any>): Promise<any> {
+  const key = String(e.query ?? e.url ?? '')
+  let repeat = ''
+  try {
+    const r = await runEngine($, 'research-map.mjs', ['query', key], RECALL_TIMEOUT_MS)
+    if (r.startsWith('REPEAT')) repeat = r
+  } catch { /* best effort */ }
+  // A search that is 80%+ the same as an earlier one is refused once, with where the results are; sending the same call again runs it.
+  const pct = Number(/REPEAT: (\d+)%/.exec(repeat)?.[1] ?? 0)
+  if (e.query && pct >= 80 && !repeatHeld.has(key)) {
+    repeatHeld.add(key)
+    $.ui.status('memory: held a repeated search')
+    return { deny: `${repeat} Held, not run: search memory first (mcp__session-memory__search with kinds ["research"], or research_map). If you still need a fresh search, send the same call again and it will run.` }
+  }
+  const ran = await autoIngest($, e, await next(e))
+  if (e.url) void runEngine($, 'research-map.mjs', ['query', key, '--log'], RECALL_TIMEOUT_MS).catch(() => {})
+  return repeat ? { ...ran, context: [...(ran.context ?? []), `RESEARCH NOTE (memory, not a request): ${repeat} Do not repeat it: use what is already in the pool.`] } : ran
+}
+
 // The tools Claude can call. Their schemas sit in the prompt from the start (isDeferred: false)
 // so they are reached for without a search.
 const TOOLS = [
@@ -202,11 +240,32 @@ const TOOLS = [
       type: 'object',
       properties: {
         query: { type: 'string' },
-        kinds: { type: 'array', items: { type: 'string', enum: ['lesson', 'failure', 'correction', 'request', 'response', 'image', 'thinking'] } },
+        kinds: { type: 'array', items: { type: 'string', enum: ['lesson', 'failure', 'correction', 'request', 'response', 'image', 'thinking', 'research'] } },
         scope: { type: 'string', enum: ['all', 'project'] },
         limit: { type: 'number' },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'research_map',
+    description: 'Show the research pool as categories (topic paths) with key terms, why each was gathered, top sources, and BRIDGES: terms shared by two categories, each naming the sources it came from. Use it to see what fits together before and after researching. Optional path narrows to one category.',
+    inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
+  },
+  {
+    name: 'research_query',
+    description: 'Check a web-search query against every earlier one before running it: says REPEAT with the date if a similar query was already run (then search memory first). Set log true to record the query as run.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' }, log: { type: 'boolean' } }, required: ['query'] },
+  },
+  {
+    name: 'research_ingest',
+    description:
+      'Save gathered research as RESEARCH NODES in memory: the text is split into about one paragraph per node and nothing is dropped, so it comes back later labelled RESEARCH (not a past chat). ' +
+      'Call it with the readable text of every page, paper or search result you kept (pass text, or file for a saved file), with a topic and the source URL or title. Repeats are skipped.',
+    inputSchema: {
+      type: 'object',
+      properties: { text: { type: 'string' }, file: { type: 'string' }, topic: { type: 'string' }, source: { type: 'string' }, path: { type: 'string', description: 'category path like research/cad-agents/vision' }, why: { type: 'string', description: 'why this was gathered' }, project: { type: 'string' } },
+      required: ['topic'],
     },
   },
   {
@@ -293,6 +352,17 @@ export const register: Register = on => {
     return { result: await runEngine($, 'correct.mjs', args, RECALL_TIMEOUT_MS) }
   })
 
+  on('tool.call', { tool: 'mcp__session-memory__research_map' }, async ($, e) => ({ result: await runEngine($, 'research-map.mjs', ['map', ...(e.path ? ['--path', String(e.path)] : [])], RECALL_TIMEOUT_MS) }))
+  on('tool.call', { tool: 'mcp__session-memory__research_query' }, async ($, e) => ({ result: await runEngine($, 'research-map.mjs', ['query', String(e.query ?? ''), ...(e.log ? ['--log'] : [])], RECALL_TIMEOUT_MS) }))
+
+  on('tool.call', { tool: 'mcp__session-memory__research_ingest' }, async ($, e) => {
+    const args = ['--topic', String(e.topic ?? ''), '--source', String(e.source ?? ''), '--session', await $.session.id(), '--path', String(e.path ?? ''), '--why', String(e.why ?? ''), '--project', String(e.project ?? '')]
+    if (typeof e.text === 'string' && e.text.trim()) args.push('--text', e.text)
+    else if (typeof e.file === 'string' && e.file.trim()) args.push('--file', e.file)
+    else return { result: 'research_ingest needs text or file.' }
+    return { result: await runEngine($, 'research.mjs', args, RECALL_TIMEOUT_MS * 4) }
+  })
+
   on('tool.call', { tool: 'mcp__session-memory__session_trail' }, async ($, e) => {
     const session = await $.session.id()
     return { result: await runEngine($, 'trail.mjs', ['--q', String(e.query ?? ''), '--session', session], RECALL_TIMEOUT_MS * 2) }
@@ -377,6 +447,13 @@ export const register: Register = on => {
         { timeoutMs: RECALL_TIMEOUT_MS },
       )
       const block = r.exitCode === 0 ? r.stdout.trim() : ''
+      let aha = ''
+      if (q) {
+        try { aha = await runEngine($, 'research-map.mjs', ['aha', q.slice(0, 500)], RECALL_TIMEOUT_MS) } catch { /* optional */ }
+        if (aha.startsWith('session-memory error') || aha === lastAha) aha = ''
+        else lastAha = aha
+        if (aha) e = { ...e, context: [...(e.context ?? []), `RESEARCH NOTE (memory, not a request; a lead, check it fits): ${aha}`] }
+      }
       itemsLeft = TURN_ITEMS
       notesLeft = TURN_NOTES
       topicLeft = TOPIC_ITEMS
@@ -423,6 +500,12 @@ export const register: Register = on => {
   })
 
   // The tool watcher, around every tool call:
+  // Auto-ingest: every WebSearch / WebFetch result is saved whole into the research pool and its query logged,
+  // by code, not by the model (fewer model tokens). Best effort, never blocks or alters the call.
+  // Before a search or fetch: a code check (no model) for a repeat of an earlier query or URL; a repeat adds a note to the result.
+  on('tool.call', { tool: 'WebSearch' }, async ($, e, next) => webTool($, e as Record<string, unknown>, next))
+  on('tool.call', { tool: 'WebFetch' }, async ($, e, next) => webTool($, e as Record<string, unknown>, next))
+
   //  BEFORE: check this exact call against its history. One that failed 2+ times and never worked is
   //          held once per session, with the known cause, so it is not repeated blindly.
   //  AFTER:  attach what memory knows (a saved lesson for this tool, a repeated failure on this

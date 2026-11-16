@@ -37,13 +37,18 @@ export const tierOf = (model: string): number => {
   return i === -1 ? 2 : i
 }
 
-const MODEL_FOR: Record<Exclude<Need, 'chat'>, string> = {
+const MODEL_FOR_DEFAULT: Record<Exclude<Need, 'chat'>, string> = {
   clarify: 'haiku', // unsure what is meant: ask cheaply, upgrade once the idea is clear
   simple: 'haiku',
   scoped: 'sonnet',
   unsure: 'opus',
   ambitious: 'fable',
 }
+// MODEL_SELECTOR_ONLY=sonnet (or haiku, opus, fable) pins every task to that one model.
+const ONLY = (process.env.MODEL_SELECTOR_ONLY || '').trim().toLowerCase()
+const MODEL_FOR: Record<Exclude<Need, 'chat'>, string> = TIERS.includes(ONLY)
+  ? { clarify: ONLY, simple: ONLY, scoped: ONLY, unsure: ONLY, ambitious: ONLY }
+  : MODEL_FOR_DEFAULT
 
 export function fromGrade(g: Grade): Pick {
   let why = g.why

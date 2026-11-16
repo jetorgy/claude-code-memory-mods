@@ -28,7 +28,7 @@ const has = k => args.includes(k)
 const val = k => { const i = args.indexOf(k); return i === -1 ? undefined : args[i + 1] }
 const DRY = has('--dry-run')
 const CLAUDE_HOME = resolve(val('--claude-home') || process.env.CLAUDE_HOME_DIR || join(homedir(), '.claude'))
-const MODS = ['session-memory', 'model-selector', 'subagent-router']
+const MODS = ['session-memory', 'model-selector', 'subagent-router', 'research']
 const MODS_DIR = join(CLAUDE_HOME, 'my-mods')
 const SETTINGS = join(CLAUDE_HOME, 'settings.json')
 const MEMORY_HOME = process.env.SESSION_MEMORY_HOME || join(CLAUDE_HOME, 'session-memory')

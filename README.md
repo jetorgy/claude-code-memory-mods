@@ -7,6 +7,7 @@ Three Claude Code mods that give Claude a working memory of your own past sessio
 * **session-memory**: a searchable memory of every saved session, recalled by relevance before each message; lessons from past errors; a sliding window of recent exchanges after each compaction; auto-compaction at 150k tokens; `/memory-off` and `/memory-on`.
 * **model-selector**: picks a model and effort per message; nudges Claude to ask when a request is vague and to web-search when it is stuck; optional private local model for the small jobs.
 * **subagent-router**: helper agents on Haiku or Sonnet, at most four at once.
+* **research**: a switchable research workflow (clarify, protocol, collect, appraise, iterate, synthesize) with a notebook on disk. Web results are saved into a research pool in session-memory, repeat searches are held, and a map shows which topics connect.
 
 Plus a flight recorder (a log of every decision the mods make) and a launcher for an optional local model.
 

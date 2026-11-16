@@ -198,6 +198,12 @@ export async function recall({ mem, q, cwd = '', session = '', limit, cfg, skip 
       const from = get(m.from)
       if (from) lines.push(`Learned while: "${clip(body(from), 80)}"`)
       ids = [hit.id]
+    } else if (hit.pool === 'research') {
+      // Research material is never memory of a conversation: it is labelled so the two are told apart.
+      if (used.has(hit.id)) continue
+      used.add(hit.id)
+      lines = [`RESEARCH NODE, from gathered research, not a past chat${m.topic ? ` · topic: "${clip(m.topic, 60)}"` : ''}${m.source ? ` · source: ${clip(m.source, 120)}` : ''}${m.n ? ` · part ${m.n}/${m.of}` : ''}:`, clip(body(hit), 700)]
+      ids = [hit.id]
     } else if (hit.pool === 'image') {
       if (used.has(hit.id)) continue
       used.add(hit.id)
@@ -341,7 +347,7 @@ export function render({ items = [], handoffSections = [], plain = false }, maxC
   for (const it of items) {
     const m = it.r.metadata
     const where = [day(m.ts), m.project, it.title ? `"${clip(it.title, 50)}"` : null, m.helper ? 'helper' : null, it.tier === 'cold' ? 'from cold storage' : null].filter(Boolean).join(' · ')
-    const head = `${n + 1}. [${where}] ${it.why} (ref ${refOf(it.r.id)})`.replace(/\s+\(ref/, ' (ref').trimEnd()
+    const head = `${n + 1}. [${it.r.pool === 'research' ? 'RESEARCH · ' : ''}${where}] ${it.why} (ref ${refOf(it.r.id)})`.replace(/\s+\(ref/, ' (ref').trimEnd()
     const block = `${head}\n${it.lines.map(l => `   ${l}`).join('\n')}\n`
     if (out.length + block.length < maxChars) { out += block; n++ }
   }

@@ -52,13 +52,13 @@ export const refOf = id => createHash('sha1').update(String(id)).digest('hex').s
 
 // One pool per kind of node, so each pool's scoring statistics stay clean.
 // group / project / session / helper are structural (no searchable content): they only hold the hierarchy.
-export const POOLS = ['group', 'project', 'session', 'helper', 'lesson', 'request', 'correction', 'response', 'thinking', 'tool_call', 'failure', 'success', 'image']
+export const POOLS = ['group', 'project', 'session', 'helper', 'lesson', 'request', 'correction', 'response', 'thinking', 'tool_call', 'failure', 'success', 'image', 'research']
 
 export const DEFAULT_CONFIG = {
   // Project folders whose name contains any of these are never read. Case-insensitive.
   excludeProjects: ['personal', 'session-memory'],
   // Which pools may be shown back to the model.
-  recallPools: ['lesson', 'request', 'correction', 'response', 'failure', 'thinking', 'image'],
+  recallPools: ['lesson', 'request', 'correction', 'response', 'failure', 'thinking', 'image', 'research'],
   // Everything shown stays in the conversation and is re-sent every turn, so it is kept small.
   // The most related few, never a long list: a focused handful is what the model can act on.
   maxResults: 5,

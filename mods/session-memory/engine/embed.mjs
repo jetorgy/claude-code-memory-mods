@@ -13,7 +13,7 @@ import { HOME, openMemory, openCold, loadConfig } from './store.mjs'
 
 // The kinds of memory that can be recalled by meaning. Thinking, tool calls and successes are far
 // more numerous and are found by keyword only.
-export const EMBED_POOLS = ['lesson', 'correction', 'request', 'response', 'failure']
+export const EMBED_POOLS = ['lesson', 'correction', 'request', 'response', 'failure', 'research']
 const IDX_PATH = join(HOME, 'embeddings.json')
 const BIN_PATH = join(HOME, 'embeddings.bin')
 const BASE = process.env.SESSION_MEMORY_EMBED_URL || 'http://127.0.0.1:11435'

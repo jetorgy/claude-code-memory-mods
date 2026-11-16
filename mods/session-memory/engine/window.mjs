@@ -12,8 +12,8 @@ import { join } from 'node:path'
 import { openMemory, existsMemory, isSwitchTalk, HOME } from './store.mjs'
 
 const STATE = join(HOME, 'window-state.json')
-const START_PAIRS = 40, MIN_PAIRS = 10, MAX_PAIRS = 80
-const BUDGET_CHARS = 120000 // about 30k tokens: a hard ceiling, a fifth of the 150k compaction point
+const START_PAIRS = 20, MIN_PAIRS = 6, MAX_PAIRS = 40
+const BUDGET_CHARS = 40000 // about 10k tokens: a hard ceiling, tightened so a compaction frees more room
 const load = () => { try { return { pairs: START_PAIRS, turnsSince: 0, intervals: [], ...JSON.parse(readFileSync(STATE, 'utf8')) } } catch { return { pairs: START_PAIRS, turnsSince: 0, intervals: [] } } }
 const save = s => { const t = `${STATE}.${process.pid}.tmp`; writeFileSync(t, JSON.stringify(s)); renameSync(t, STATE) }
 const a = process.argv.slice(2)

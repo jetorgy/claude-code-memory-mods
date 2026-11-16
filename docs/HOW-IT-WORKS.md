@@ -38,7 +38,23 @@ A Claude Code conversation can't be cleared and restarted every turn the way a l
 * **Auto-compaction** at 150,000 tokens, through Claude Code's own `/compact`.
 * **Off switch.** `/memory-off` and `/memory-on`. The state is a file (`~/.claude/session-memory/disabled`), so it survives restarts. **Only the user can flip it.** Any talk of switching the memory on or off, in any spelling or with any symbols (`/memory-off`, `memory_off`, `Memory—Off!`, "turn the memory mod off"), is filtered out of everything memory shows back: recall notes, the handoff, the active window, session trails and the search tools. The commands refuse to run if another mod fires them, a tool call that tries them through `Skill` or `SlashCommand` is denied, and so is a shell command or file write that touches the switch file. Every refusal is logged by the flight recorder as `switch_refused`. A few harmless sentences ("memory on the disk") are hidden too; hiding extra is the safe side.
 
+## research
+
+A switchable research mode. Starting a project creates `research/<slug>/` in the working directory (`state.json`, `question.md`, `protocol.md`, `queries.md`, `evidence.md`, `notebook.md`, `report.md`) and walks Claude through six stages, each with an exit gate: clarify, protocol, collect, appraise, iterate, synthesize. Two simulated experts (an estimator and a skeptic) are run as subagents; they share one model, so agreement is never treated as proof.
+
+It works together with session-memory, so install both (the installer does):
+
+* **Research pool.** `research_ingest` splits gathered text into one node per paragraph under a topic path such as `research/evolution/llm-operators`, and later recall labels it RESEARCH. WebSearch results are saved automatically by a hook (under the active project, or `research/web` when none is active).
+* **`research_query`** checks a search query against every earlier one and says REPEAT with the date. Matching is word overlap, ignoring word order, so a reworded query can score high.
+* **Repeat block.** A WebSearch that matches an earlier query at 80% or more is held once with the match and a pointer to memory. Sending the same call again runs it. Matches of 60 to 79% only add a note. WebFetch gets the note only.
+* **`research_map`** lists the categories with key terms and sources, and a **Semantic bridges** section: pairs of sources in different categories that are close in meaning (embedding cosine 0.85 or more, nomic-embed-text in the private Ollama). Notes such as evidence, notebook and report files are skipped. Treat bridges as leads, not proof.
+* **Aha line.** At the start of a task, research on file that matches the words (two terms of 6+ letters) or the meaning (cosine 0.65 or more; skipped for prompts under 40 characters) is attached as a lead. If Ollama is down it falls back to words, with a 1.5 s cap.
+
+Not covered yet: WebFetch auto-save has not been tested, and the `research/web` fallback has not been tested.
+
 ## model-selector
+
+Set `MODEL_SELECTOR_ONLY=sonnet` (or haiku, opus, fable) in the `env` block of `settings.json` to pin every task to that one model instead of the default tier mapping.
 
 * Grades each message and picks a model and effort level by a cost-versus-quality rubric. `/route` controls it.
 * Adds guidance notes: ask short questions when a request is vague, aim for the professional-complete version of what was asked, and **search the web when stuck or when a precise technical fact can't be checked from the files**.
