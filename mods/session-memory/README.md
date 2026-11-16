@@ -10,7 +10,7 @@ Commands: /recall <words> searches by hand, /recall stats shows counts, /recall 
 
 Before every tool call the mod checks the call's history (engine/toolhint.mjs, from the small toolindex.json): a call that failed 2+ times in earlier sessions and never worked is held once per session with the known cause. After any call, relevant memory (a saved lesson for that tool, a repeated failure on that target, a known fix for that exact error) is attached before Claude's next step. Permission outages and declined prompts never count as failures.
 
-Limits, so a turn is never saturated: each lookup returns at most the 5 most related items and only strong matches (it can return fewer or nothing); one budget of 6 items and 3 notes covers a whole turn across the message recall and every tool-call note; nothing is ever shown twice in a session; permission outages and declined prompts are never recalled as failures; and a question with too few meaningful words matches nothing.
+Limits, so a turn is never saturated: each lookup returns at most 5 related items by default and only strong matches (it can return fewer or nothing); one budget of 10 items and 3 notes covers a whole turn across the message recall and every tool-call note; nothing is ever shown twice in a session; permission outages and declined prompts are never recalled as failures; and a question with too few meaningful words matches nothing.
 
 New-session handoff: on the first message of a new session the mod first reads in the newest messages of the session just left, then attaches the last 10 exchanges (oldest first), errors that keep happening and are unsolved, saved lessons, and the commands line. `/recall active` shows the active nodes list (strongest first; add a kind such as lesson or failure).
 

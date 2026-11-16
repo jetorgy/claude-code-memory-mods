@@ -1,11 +1,11 @@
 # claude-code-memory-mods
 
-**Claude Code forgets between sessions, repeats old mistakes, and loses detail when it compacts. These mods give it a memory of your own past sessions, on your own machine.** [Why you would want this](docs/WHY.md) · [how it works](docs/HOW-IT-WORKS.md)
+**Claude Code forgets between sessions, repeats old mistakes, and loses detail when it compacts. These mods give it a memory of your own past sessions, on your own machine.** [Start here](docs/START-HERE.md) · [why it is built this way](docs/why/index.md)
 
-Three Claude Code mods that give Claude a working memory of your own past sessions, keep long conversations light, and spend models sensibly:
+Four Claude Code mods that give Claude a working memory of your own past sessions, keep long conversations light, and spend models sensibly:
 
 * **session-memory**: a searchable memory of every saved session, recalled by relevance before each message; lessons from past errors; a sliding window of recent exchanges after each compaction; auto-compaction at 150k tokens; `/memory-off` and `/memory-on`.
-* **model-selector**: picks a model and effort per message; nudges Claude to ask when a request is vague and to web-search when it is stuck; optional private local model for the small jobs.
+* **model-selector**: keeps the chat on Sonnet (switch with `/route model <name>`), sets effort per message; nudges Claude to ask when a request is vague and to web-search when it is stuck; optional private local model for the small jobs.
 * **subagent-router**: helper agents on Haiku or Sonnet, at most four at once.
 * **research**: a switchable research workflow (clarify, protocol, collect, appraise, iterate, synthesize) with a notebook on disk. Web results are saved into a research pool in session-memory, repeat searches are held, and a map shows which topics connect.
 
@@ -49,7 +49,7 @@ Then run `/reload-plugins` inside Claude Code. Needs Node 18 or newer and npm. *
 |---|---|
 | `/memory-off` / `/memory-on` | Switch the memory mod off or on. It stays that way after a restart. Nothing is deleted. |
 | `/recall <words>` | Search your past sessions. `/recall active`, `/recall stats`, `/recall index` also work. |
-| `/route` | Control the model selector. |
+| `/route` | Control the model selector. `/route model haiku\|sonnet\|opus\|fable` changes the session model (it starts on Sonnet). |
 | `/local on\|off\|auto\|status\|start\|free` | Control the optional local model. `free` releases its GPU memory now. |
 
 ## The optional local model
@@ -63,9 +63,19 @@ node install/install.mjs --uninstall                 # removes the mods; keeps y
 node install/install.mjs --uninstall --delete-data   # also deletes the memory
 ```
 
-## More
+## Documentation
 
-* [Why you would want this](docs/WHY.md)
-* [How it works](docs/HOW-IT-WORKS.md)
-* [Safety](SAFETY.md)
-* [Setup prompt](SETUP-PROMPT.md)
+There is one page for each thing the mods do. [docs/START-HERE.md](docs/START-HERE.md) lists them all.
+
+| Folder | What is in it |
+|---|---|
+| [docs/session-memory/](docs/session-memory/) | Reading sessions, recall, tool-call memory, strength and decay, the active window and compaction, handoff, lessons, commands, the off switch |
+| [docs/research/](docs/research/) | The research workflow, the research pool, the repeat block, the map, the aha line |
+| [docs/model-selector/](docs/model-selector/) | Routing, guidance notes, the local model, the GPU watcher |
+| [docs/subagent-router/](docs/subagent-router/overview.md) | Helper agents and the cap of four |
+| [docs/extras/](docs/extras/flight-recorder.md) | The flight recorder |
+| [docs/install/](docs/install/) | The installer and the setup prompt |
+| [docs/reference/](docs/reference/) | Configuration, files on disk, architecture, troubleshooting, glossary |
+| [docs/why/](docs/why/index.md) | Why each number and design choice is what it is (for example, compaction at 150k) |
+
+Also: [SAFETY.md](SAFETY.md) and [SETUP-PROMPT.md](SETUP-PROMPT.md).

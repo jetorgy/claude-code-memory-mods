@@ -4,7 +4,7 @@ Read this before installing. Every claim here can be checked in the code, and `S
 
 ## In one paragraph
 
-These are three Claude Code "mods" plus two small helper folders. They add a searchable memory of your own past Claude Code sessions, pick a model and effort level for each message, and cap how many helper agents run at once. Everything runs on your machine. The only network address the code itself contacts is `127.0.0.1:11435`, a private Ollama on your own computer, and only if you choose to set that up. The code does not call any other server, does not send your data anywhere, and installs nothing by itself.
+These are four Claude Code "mods" plus two small helper folders. They add a searchable memory of your own past Claude Code sessions, pick a model and effort level for each message, and cap how many helper agents run at once. Everything runs on your machine. The only network address the code itself contacts is `127.0.0.1:11435`, a private Ollama on your own computer, and only if you choose to set that up. The code does not call any other server, does not send your data anywhere, and installs nothing by itself.
 
 ## What it reads
 
@@ -30,7 +30,7 @@ It writes nothing anywhere else. There is no `sudo`, no `chmod` beyond making it
 
 ## What it runs
 
-Its own scripts use Node's `fetch` for one thing, the local embedding model at `127.0.0.1:11435` (`engine/embed.mjs`), and nothing else. The hooks start only these programs: `node` (its own scripts), `curl` (only to `127.0.0.1:11435`), `nvidia-smi` (read only), a background `node` copy of `mods/model-selector/engine/gpuwatch.mjs` (it only asks the private Ollama at `127.0.0.1:11435` to unload the mods' own two models, and stops itself when they are gone), `bash` (only its own `ensure.sh`), and `mkdir`, `touch`, `rm -f`, `test` (only for the on/off switch file). All of it is listed by `grep -rn "process.run" mods`.
+Its own scripts use Node's `fetch` only against the private Ollama at `127.0.0.1:11435`: `engine/embed.mjs` (embeddings) and `engine/gpuwatch.mjs` (unloading the mods' models). The hooks start only these programs: `node` (its own scripts), `curl` (only to `127.0.0.1:11435`), `nvidia-smi` (read only), a background `node` copy of `mods/model-selector/engine/gpuwatch.mjs` (it only asks the private Ollama at `127.0.0.1:11435` to unload the mods' own two models, and stops itself when they are gone), `bash` (only its own `ensure.sh`), and `mkdir`, `touch`, `rm -f`, `test` (only for the on/off switch file). All of it is listed by `grep -rn "process.run" mods`.
 
 ## What it sends, and to whom
 

@@ -1,1 +1,1 @@
-{ "name": "subagent-router", "version": "0.1.0", "description": "Runs sub-agents on the cheapest model that fits the task (Haiku for lookups, Sonnet for scoped jobs, Opus for hard ones) instead of inheriting the main model." }
+{ "name": "subagent-router", "version": "0.1.0", "description": "Runs sub-agents on the cheapest model that fits the task (Haiku for lookups, Sonnet for everything else; never Opus; at most four at once) instead of inheriting the main model." }

@@ -344,7 +344,8 @@ async function pollEffort($: EngineInterface, level: Effort, activity: string[],
 
 export const register: Register = on => {
   let mode: Mode = 'auto'
-  let sessionModel: string | undefined
+  // The session model starts on Sonnet and stays there; only `/route model <name>` changes it.
+  let sessionModel: string | undefined = 'sonnet'
   let chosen: Pick | undefined
   const recent: string[] = []
   let lastAnswerMem = '' // the tail of Claude's last reply, so the grader can tell a continuation from a new request
@@ -411,6 +412,13 @@ export const register: Register = on => {
 
   on('command.run', { command: 'route' }, async ($, e) => {
     const arg = e.args.trim()
+    const pick = /^model\s+(\w+)$/i.exec(arg)
+    if (pick) {
+      const m = pick[1].toLowerCase()
+      if (!TIERS.includes(m)) return { text: `model: choose one of ${TIERS.join(', ')}` }
+      sessionModel = m
+      return { text: `model-selector: session model set to ${m}` }
+    }
     if (arg === 'auto' || arg === 'always' || arg === 'suggest' || arg === 'off') {
       mode = arg
       if (arg === 'off') {
@@ -422,7 +430,7 @@ export const register: Register = on => {
     return {
       text:
         `model-selector is ${mode}${sessionModel ? `, model set to ${sessionModel}` : ''}. Modes:\n` +
-        ` auto    the first real task sets the model; effort follows every prompt (keeps the cache)\n` +
+        ` auto    the model stays on Sonnet unless you run /route model <name>; effort follows every prompt (keeps the cache)\n` +
         ` always  model and effort re-picked every prompt (a switch re-reads the whole chat at full price)\n` +
         ` suggest only show the recommendation\n` +
         ` off     do nothing`,
@@ -480,7 +488,7 @@ export const register: Register = on => {
       if (sessionModel === undefined && p.model !== undefined) sessionModel = p.model
       chosen = { ...p, model: sessionModel }
       if (sessionModel !== undefined && p.model !== undefined && p.model !== sessionModel) {
-        $.ui.toast(`${p.model} would fit this better; staying on ${sessionModel} to keep the cache. Ask for a handoff prompt to switch.`)
+        $.ui.toast(`${p.model} would fit this better; staying on ${sessionModel} to keep the cache. Run /route model <name> to switch.`)
       }
     }
     // Guidance that rides along with the message (not for suggest mode, which only recommends).

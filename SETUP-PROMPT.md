@@ -47,7 +47,7 @@ This setup was written and tested **only on Linux Mint 22.3** (Linux kernel, bas
 
 Read `SAFETY.md` first. Then actually read the code, not just the list. Open every file under `mods/`, `extras/`, `install/` and `tools/` (skip `node_modules`; there is none yet). For each claim in `SAFETY.md`, find the line of code that backs it up, or tell me where it is wrong. At minimum:
 
-* Search all code for network use (`http`, `fetch`, `curl`, `net.`, `WebFetch`) and list every address and why. Expected: only `127.0.0.1:11435` (`fetch` appears only in `mods/session-memory/engine/embed.mjs`, for the local embedding model).
+* Search all code for network use (`http`, `fetch`, `curl`, `net.`, `WebFetch`) and list every address and why. Expected: only `127.0.0.1:11435` (`fetch` appears in `mods/session-memory/engine/embed.mjs` for the local embedding model and in `mods/model-selector/engine/gpuwatch.mjs` to ask the private Ollama to unload models).
 * Search for every program the code starts (`process.run`, `spawn`, `exec`, `child_process`) and list them. Expected: `node`, `curl`, `nvidia-smi`, `bash`, and `mkdir`, `touch`, `rm -f`, `test` for the on/off switch.
 * Search for anything that looks hidden or risky: `eval`, `new Function`, `base64`, `atob`, long encoded strings, `sudo`, writes outside `~/.claude`, reading files outside `~/.claude/projects`, anything that sends file contents anywhere.
 * Read `install/install.mjs` fully. List every file and setting it changes.
