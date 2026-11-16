@@ -17,7 +17,7 @@ The model is a convenience. Your own work comes first. Waiting for the model's i
 1. The model-selector mod starts the watcher when the local model is in use. It calls `ensureWatcher` at most once every 60 seconds.
 2. The watcher asks `nvidia-smi` (`memory.free`) for free memory and asks the private Ollama (`/api/ps`) which models are loaded.
 3. If free memory plus our models' share (`free + ours`) is below 4500 MB and our models are loaded, it sends a keep-alive of 0 for `gemma4:e4b` and `nomic-embed-text`. That unloads them.
-4. It logs a `gpu_yield` event to the flight recorder.
+4. It logs a `gpu_yield` event through `flight-recorder/rec.mjs` (so the log rotates like every other event).
 5. It stops after 60 seconds with none of our models loaded.
 
 It only ever unloads those two models. It never touches other Ollama models or any other process.

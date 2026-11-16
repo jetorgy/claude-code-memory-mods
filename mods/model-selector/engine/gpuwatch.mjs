@@ -9,7 +9,7 @@
 // It exits by itself when none of the mods' models has been loaded for a minute, or when there is no
 // NVIDIA GPU to watch. One instance only (pid file).
 import { execFileSync, spawn } from 'node:child_process'
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,10 +22,11 @@ const EVERY_MS = 2000
 const QUIT_AFTER_MS = 60000
 const HOME = process.env.CLAUDE_HOME || join(homedir(), '.claude')
 const PID = join(HOME, 'local-llm', 'gpuwatch.pid')
-const LOG = join(HOME, 'flight-recorder', 'log.jsonl')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const alive = pid => { try { process.kill(pid, 0); return true } catch { return false } }
-const rec = o => { try { appendFileSync(LOG, JSON.stringify({ ts: new Date().toISOString(), source: 'model-selector', ...o }) + '\n') } catch {} }
+// Goes through the shared recorder (rotation, 0600 mode). Never throws.
+const REC = join(HOME, 'flight-recorder', 'rec.mjs')
+const rec = o => { try { const { event, ...data } = o; execFileSync('node', [REC, 'model-selector', event, JSON.stringify(data)], { timeout: 3000 }) } catch {} }
 
 function freeMb() {
   try {

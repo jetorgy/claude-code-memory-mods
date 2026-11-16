@@ -70,7 +70,7 @@ In every allowed case the toast is shown and the helper is started with the chos
 
 ## Known limits
 
-* The count can drift. It only comes down on a completed turn that carries a helper id. If a helper ends in a way that does not produce that event, the router can believe it is still running, and may refuse new ones until the session restarts. The count is held in memory and resets with the process. (Read from the code; not shown by testing.)
+* The count can still be wrong for a while. It comes down on a completed turn that carries a helper id. A helper that ends without that event keeps its slot for up to 30 minutes (`STALE_MS`), after which the slot is freed. The count is held in memory and resets with the process. (Read from the code; not shown by testing.)
 * The grader sees only the task text. A short brief that hides a hard job may be sent to Haiku.
 * A caller-chosen model other than Opus is never checked. Naming a model the account cannot use is the caller's mistake to find.
 * The grader call itself costs a little each time (a Haiku call with 120 tokens at most). Types listed in `byType` and caller-chosen models skip it.

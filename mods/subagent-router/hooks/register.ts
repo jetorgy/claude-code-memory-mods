@@ -5,6 +5,8 @@ import type { Register } from 'claude-code'
 // never Opus, and at most MAX_RUNNING run at once, so splitting work stays cheap.
 
 const MAX_RUNNING = 4
+// A helper that never reports completion (killed, crashed) must not hold a slot forever.
+const STALE_MS = 30 * 60 * 1000
 
 const RUBRIC = `A main AI agent is handing a task to a helper sub-agent. Pick the cheapest model that can do it well.
 Judge the task, never the length of the brief.
@@ -35,10 +37,12 @@ export function byType(type: string): { model: 'haiku' | 'sonnet'; why: string }
 }
 
 export const register: Register = on => {
-  let running = 0
+  const started: number[] = []
+  const prune = (): void => { const cut = Date.now() - STALE_MS; while (started.length > 0 && (started[0] ?? 0) < cut) started.shift() }
 
   on('agent.spawn', async ($, e, next) => {
-    if (running >= MAX_RUNNING) {
+    prune()
+    if (started.length >= MAX_RUNNING) {
       return { deny: `sub-agent limit reached (${MAX_RUNNING} running). Wait for one to finish, or do this step yourself.` }
     }
     // Respect an explicit choice by the caller, unless it asks for Opus.
@@ -63,7 +67,7 @@ export const register: Register = on => {
 
     $.ui.toast(`sub-agent ${e.subagentType} → ${pick.model} (${pick.why})`)
     const ran = await next({ ...e, model: pick.model })
-    if (ran.deny === undefined) running += 1
+    if (ran.deny === undefined) started.push(Date.now())
     return ran
   })
 
@@ -73,7 +77,7 @@ export const register: Register = on => {
   })
 
   on('turn.complete', ($, e, next) => {
-    if (e.agentId !== undefined && running > 0) running -= 1
+    if (e.agentId !== undefined && started.length > 0) started.shift()
     return next(e)
   })
 }
