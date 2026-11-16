@@ -12,10 +12,10 @@ Before you do anything, ask the user this one question and wait for the answer:
 
 **If they choose step by step:** follow every section below exactly as written, asking permission where it says to.
 
-**If they choose automatic:** do all the steps below without asking again, including downloads, installs and commands. The following still apply in automatic mode:
+**If they choose automatic:** this answer is the permission for the steps below that say "ask first" or "ask permission" (downloads, the optional local models, running the commands, the import). It does not cover anything in the six rules that follow, which always apply. Do not ask again for the rest.
 
 1. **Audit first, always.** Read the code and SAFETY.md and run the checksum verification before installing anything. If you find anything suspicious or a checksum does not match, stop and tell the user. Do not install.
-2. **Check the system first.** Follow the "Which system this was tested on" section. If it is not Linux, tell the user what you are changing to fit their system and continue.
+2. **Check the system first.** Follow the "Which system this was tested on" section. If it is not Linux, tell the user what you are changing to fit their system and continue (in step by step mode, ask first; in automatic mode, say what you changed). If you cannot make a part work, skip it and say so.
 3. **Passwords stay with the user.** If a step needs admin rights (for example installing Ollama), tell the user and let them type the password or run that one command themselves. Never ask for or enter a password.
 4. **Skip what does not fit.** If the machine has no suitable GPU or not enough memory or disk, skip the optional local models and say so. The mods work without them.
 5. **Leave existing setups alone.** Do not touch the user's own Ollama, models or settings beyond the documented merge into `settings.json`, which is backed up first.
@@ -27,7 +27,7 @@ You are helping me install a set of Claude Code mods called **claude-code-memory
 
 ## Which system this was tested on (read this, then adapt)
 
-This setup was written and tested **only on Linux Mint 22.3** (Linux kernel, bash, Node 24, an NVIDIA RTX 5070 with `nvidia-smi`, a private Ollama). It has not been run on any other system. **Before step 1, find out what system I am on** (operating system and version, shell, whether I have an NVIDIA GPU, whether Node 18 or newer and `curl` are installed) and tell me. If it is not Linux, or differs in a way that matters, do not follow the steps blindly: say which parts rely on Linux tools (the `test`, `mkdir`, `touch` and `rm` commands used by `/memory-off`, `bash` for the local-model launcher, `nvidia-smi` for the GPU checks, the `tools/*.sh` scripts), propose the smallest change for my system, and ask me before using it. The memory, recall and compaction parts are plain Node scripts. The local model and GPU parts are optional and can simply be skipped.
+This setup was written and tested **only on Linux Mint 22.3** (Linux kernel, bash, Node 24, an NVIDIA RTX 5070 with `nvidia-smi`, a private Ollama). It has not been run on any other system. **Before step 1, find out what system I am on** (operating system and version, shell, whether I have an NVIDIA GPU, whether Node 18 or newer and `curl` are installed) and tell me. If it is not Linux, or differs in a way that matters, do not follow the steps blindly: say which parts rely on Linux tools (the `test`, `mkdir`, `touch` and `rm` commands used by `/memory-off`, `bash` and `setsid` for the local-model launcher, `sha256sum` for `tools/verify.sh`, `nvidia-smi` for the GPU checks, the `tools/*.sh` scripts), propose the smallest change for my system, and ask me before using it. The memory, recall and compaction parts are plain Node scripts. The local model and GPU parts are optional and can simply be skipped.
 
 ## Rules for the whole job
 
@@ -47,8 +47,8 @@ This setup was written and tested **only on Linux Mint 22.3** (Linux kernel, bas
 
 Read `SAFETY.md` first. Then actually read the code, not just the list. Open every file under `mods/`, `extras/`, `install/` and `tools/` (skip `node_modules`; there is none yet). For each claim in `SAFETY.md`, find the line of code that backs it up, or tell me where it is wrong. At minimum:
 
-* Search all code for network use (`http`, `fetch`, `curl`, `net.`, `WebFetch`) and list every address and why. Expected: only `127.0.0.1:11435` (`fetch` appears in `mods/session-memory/engine/embed.mjs` for the local embedding model and in `mods/model-selector/engine/gpuwatch.mjs` to ask the private Ollama to unload models).
-* Search for every program the code starts (`process.run`, `spawn`, `exec`, `child_process`) and list them. Expected: `node`, `curl`, `nvidia-smi`, `bash`, and `mkdir`, `touch`, `rm -f`, `test` for the on/off switch.
+* Search all code for network use (`http`, `fetch`, `curl`, `net.`, `WebFetch`) and list every address and why. Expected: only `127.0.0.1:11435`, the private Ollama (`/api/tags`, `/api/ps`, `/api/generate`, `/api/chat`, `/api/embed`), reached with `fetch` or `curl` from the session-memory engine, the hooks, `model-selector/engine/gpuwatch.mjs` and `extras/local-llm/ensure.sh`. Two other places are allowed to name an address: `https://ollama.com/download` in the instructions, and `npm` (reaching the npm registry) when installing the one dependency or running `npm view`. Anything else is a finding.
+* Search for every program the code starts (`process.run`, `spawn`, `exec`, `child_process`) and list them. Expected: `node`, `curl`, `nvidia-smi`, `bash`, `setsid`, `sha256sum`, `ollama` (only the private-server launcher and the model pull), `npm` (install and `npm view`), and `mkdir`, `touch`, `rm -f`, `test` for the on/off switch. Anything else is a finding.
 * Search for anything that looks hidden or risky: `eval`, `new Function`, `base64`, `atob`, long encoded strings, `sudo`, writes outside `~/.claude`, reading files outside `~/.claude/projects`, anything that sends file contents anywhere.
 * Read `install/install.mjs` fully. List every file and setting it changes.
 * Check `mods/session-memory/package.json`: the only dependency should be `@automacene/liminal-memory`, pinned to an exact version. Run `npm view @automacene/liminal-memory` and tell me what it says (publisher, version, licence).

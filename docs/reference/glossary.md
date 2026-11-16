@@ -18,7 +18,7 @@ Terms are in alphabetical order. Where a term has a setting or a value, the numb
 
 ## Terms
 
-**Auto mode.** The default `/route` mode. The session model starts on Sonnet and stays there until you run `/route model <name>`. Effort follows every prompt.
+**Auto mode.** The default `/route` mode. The mod assumes the session model is Sonnet until you run `/route model <name>`; neither switches the real model (Claude Code's `/model` does). Effort follows every prompt.
 
 **Autocompact.** Claude Code's own setting `autoCompactWindow`. The installer sets it to 150000 only with `--autocompact`, and only if unset. It is the safety net behind the mod's own compaction.
 

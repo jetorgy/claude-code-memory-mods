@@ -29,7 +29,8 @@ if (turns.length) {
   console.log(`real usage over ${turns.length} turns: ${Object.entries(tot).map(([k, v]) => `${k}=${v}`).join(' ')}`)
 }
 console.log(`injected by memory/selector: ~${Math.round(chars / 4)} tokens (${chars} chars), ${items} recalled items`)
-const last = Number(arg('--last') ?? 8)
+const lastRaw = Number(arg('--last') ?? 8)
+const last = Number.isFinite(lastRaw) && lastRaw > 0 ? Math.floor(lastRaw) : 8
 console.log(`last ${Math.min(last, rows.length)}:`)
 for (const r of rows.slice(-last)) {
   const { ts, source, event, ...rest } = r

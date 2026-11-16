@@ -48,7 +48,7 @@ async function unloadOurs() {
 // One look. Returns { free, ours, yielded }.
 async function check() {
   const free = freeMb()
-  if (free === undefined) return { free, ours: 0, yielded: false, noGpu: true }
+  if (free === undefined) return { free, ours: 0, yielded: false, noGpu: true, unreadable: true }
   const ours = await oursMb()
   if (ours > 0 && free + ours < MIN_MB) {
     await unloadOurs()
@@ -77,11 +77,13 @@ if (arg === '--start') {
 try { mkdirSync(dirname(PID), { recursive: true }); writeFileSync(PID, String(process.pid)) } catch {}
 const cleanup = () => { try { if (Number(readFileSync(PID, 'utf8')) === process.pid) rmSync(PID) } catch {} }
 process.on('exit', cleanup); process.on('SIGTERM', () => process.exit(0)); process.on('SIGINT', () => process.exit(0))
-let idleSince = Date.now(), failures = 0
+let idleSince = Date.now(), failures = 0, unreadable = 0
 for (;;) {
   try {
     const s = await check()
-    if (s.noGpu) break // no NVIDIA GPU: nothing to watch
+    // nvidia-smi is slowest exactly when the GPU is busy: tolerate a few failed reads before giving up.
+    if (s.unreadable) { if (++unreadable >= 8) break; await sleep(EVERY_MS); continue }
+    unreadable = 0
     failures = 0
     if (s.ours > 0 && !s.yielded) idleSince = Date.now()
   } catch { if (++failures >= 5) break } // the private Ollama is not running

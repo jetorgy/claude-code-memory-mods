@@ -25,8 +25,8 @@ A strong model is slow and costly for "thanks" or "which file was that?". A smal
 
 ### The four modes
 
-- `/route model <haiku|sonnet|opus|fable>`: sets the session model now.
-- auto (default): the session model starts on Sonnet and stays there; `/route model haiku|sonnet|opus|fable` changes it. Effort follows every prompt. A toast says when a better model would fit.
+- `/route model <haiku|sonnet|opus|fable>`: tells the mod which model you are on. It does not switch the real model: use Claude Code's `/model` for that.
+- auto (default): the mod assumes Sonnet; `/route model haiku|sonnet|opus|fable` changes that assumption (status text and toasts only, not the real model). Effort follows every prompt. A toast says when a better model would fit.
 - always: the model is re-picked on every prompt.
 - suggest: no switching and no guidance notes. Only a toast and a status line.
 - off: the mod clears its state and does nothing.
@@ -99,7 +99,7 @@ Then these corrections:
 
 ### Mode behaviour
 
-- auto: `sessionModel` starts as `sonnet`; only `/route model <name>` changes it; effort follows each prompt.
+- auto: `sessionModel` starts as `sonnet` (or the `MODEL_SELECTOR_ONLY` pin); only `/route model <name>` changes it, and it only affects status text and toasts; effort follows each prompt.
 - always: re-picks every prompt.
 - suggest: toast and status only; `guidanceFor` returns nothing.
 - off: clears state.

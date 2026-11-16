@@ -136,6 +136,7 @@ export async function processLine(ctx, raw) {
   if (SKIP.test(raw)) return 0
   let o
   try { o = JSON.parse(raw) } catch { return 0 }
+  if (!o || typeof o !== 'object') return 0
   const { mem, st } = ctx
 
   if (o.type === 'custom-title' && typeof o.customTitle === 'string') {

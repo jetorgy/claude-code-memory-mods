@@ -7,15 +7,15 @@
 //   node install/install.mjs --autocompact   also set Claude Code's own 150000-token compaction safety net
 //   node install/install.mjs --local-check   report whether this machine can run the optional local model (changes nothing)
 //   node install/install.mjs --pull-model    download the local models (gemma4:e4b, about 9.6 GB, and nomic-embed-text, about 274 MB) into its own private Ollama
-//   node install/install.mjs --uninstall     take the mods out of settings and delete the installed folders (keeps your memory)
-//   node install/install.mjs --uninstall --delete-data    ...and also delete the memory database
+//   node install/install.mjs --uninstall     take the mods out of settings and delete the installed code (keeps your memory, logs and local-model settings)
+//   node install/install.mjs --uninstall --delete-data    ...and also delete the memory database, logs and local-model settings
 //   node install/install.mjs --claude-home DIR            use DIR instead of ~/.claude (for testing)
 //
 // What it writes (nothing else): <claude home>/my-mods/*, <claude home>/flight-recorder, <claude home>/local-llm,
 // <claude home>/session-memory (the memory itself), and ONE merged key in <claude home>/settings.json
 // (env.CLAUDE_CODE_PLUGIN_DIRS, plus autoCompactWindow only with --autocompact). It backs settings.json up first.
 // It never installs Ollama and never downloads anything unless you pass --pull-model.
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, readdirSync, statSync, copyFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, readdirSync, statSync, copyFileSync, rmSync, realpathSync, rmdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { dirname, join, resolve, delimiter } from 'node:path'
@@ -25,7 +25,13 @@ import { spawnSync } from 'node:child_process'
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const has = k => args.includes(k)
-const val = k => { const i = args.indexOf(k); return i === -1 ? undefined : args[i + 1] }
+const val = k => {
+  const i = args.indexOf(k)
+  if (i === -1) return undefined
+  const v = args[i + 1]
+  if (v === undefined || v.startsWith('-')) { console.error(`${k} needs a value`); process.exit(2) }
+  return v
+}
 const DRY = has('--dry-run')
 const CLAUDE_HOME = resolve(val('--claude-home') || process.env.CLAUDE_HOME_DIR || join(homedir(), '.claude'))
 const MODS = ['session-memory', 'model-selector', 'subagent-router', 'research']
@@ -108,10 +114,18 @@ function readSettings() {
   try { return JSON.parse(text || '{}') } catch (e) { throw new Error(`${SETTINGS} is not valid JSON (${e.message}); fix or remove it, then run again. Nothing was changed.`) }
 }
 function writeSettings(obj) {
-  if (existsSync(SETTINGS)) copyFileSync(SETTINGS, `${SETTINGS}.bak-pre-memory-mods-${stamp}`)
   mkdirSync(CLAUDE_HOME, { recursive: true })
-  writeFileSync(`${SETTINGS}.tmp`, `${JSON.stringify(obj, null, 2)}\n`)
-  renameSync(`${SETTINGS}.tmp`, SETTINGS)
+  // If settings.json is a symlink (dotfiles managers), write through it instead of replacing the link.
+  let target = SETTINGS
+  try { target = realpathSync(SETTINGS) } catch {}
+  if (existsSync(target)) {
+    let bak = `${SETTINGS}.bak-pre-memory-mods-${stamp}`
+    for (let n = 2; existsSync(bak); n++) bak = `${SETTINGS}.bak-pre-memory-mods-${stamp}-${n}`
+    copyFileSync(target, bak)
+  }
+  const tmp = `${target}.tmp-${process.pid}`
+  writeFileSync(tmp, `${JSON.stringify(obj, null, 2)}\n`)
+  renameSync(tmp, target)
 }
 const modPaths = () => MODS.map(m => join(MODS_DIR, m))
 
@@ -185,7 +199,7 @@ function validate() {
     else fail(`engine/${file} did not run: ${(r.stderr || r.stdout || '').trim().split('\n').slice(-2).join(' | ')}`)
   }
   // The GPU watcher: one look, no side effects unless the GPU is full and the mods' own model is loaded.
-  const w = run('node', ['--no-warnings', join(MODS_DIR, 'model-selector', 'engine', 'gpuwatch.mjs'), '--once'], { env, timeout: 20000 })
+  const w = run('node', ['--no-warnings', join(MODS_DIR, 'model-selector', 'engine', 'gpuwatch.mjs'), '--once'], { env: { ...env, CLAUDE_HOME }, timeout: 20000 })
   if (w.status === 0) ok('model-selector/engine/gpuwatch.mjs runs')
   else fail(`gpuwatch.mjs did not run: ${(w.stderr || w.stdout || '').trim().split('\n').slice(-2).join(' | ')}`)
 }
@@ -255,6 +269,25 @@ function pullModel() {
 }
 
 // ---------- uninstall ----------
+// Stops the GPU watcher if one is running (it would otherwise outlive the files it runs from).
+function stopWatcher() {
+  const pidFile = join(CLAUDE_HOME, 'local-llm', 'gpuwatch.pid')
+  try {
+    const pid = Number(readFileSync(pidFile, 'utf8'))
+    if (pid > 1) { process.kill(pid, 'SIGTERM'); ok(`stopped the GPU watcher (pid ${pid})`) }
+  } catch {}
+}
+// Deletes only the files this installer put in a folder, then the folder if nothing else is left in it.
+function removeInstalledFiles(srcDir, dstDir) {
+  for (const f of walk(srcDir)) rmSync(join(dstDir, f), { force: true })
+  try { rmdirSync(dstDir) } catch {} // fails (and is left alone) if your logs or settings are still in it
+}
+// --delete-data removes a whole folder, so refuse anything that does not look like this tool's own memory folder.
+function safeToDeleteMemory() {
+  const d = resolve(MEMORY_HOME)
+  if (d === '/' || d === resolve(homedir()) || d === CLAUDE_HOME) return false
+  return existsSync(join(d, 'memory.json')) || existsSync(join(d, 'config.json')) || d === join(CLAUDE_HOME, 'session-memory')
+}
 function uninstall() {
   let s
   try { s = readSettings() } catch (e) { return fail(e.message) }
@@ -262,11 +295,20 @@ function uninstall() {
   const keep = (s.env?.CLAUDE_CODE_PLUGIN_DIRS || '').split(delimiter).filter(p => p && !mine.has(p))
   const next = JSON.parse(JSON.stringify(s))
   if (next.env) { keep.length ? (next.env.CLAUDE_CODE_PLUGIN_DIRS = keep.join(delimiter)) : delete next.env.CLAUDE_CODE_PLUGIN_DIRS; if (!Object.keys(next.env).length) delete next.env }
-  act('remove the mods from settings.json (backup first)', () => { writeSettings(next); ok('settings.json updated') })
+  if (JSON.stringify(next) === JSON.stringify(s)) skip('settings.json does not list the mods')
+  else act('remove the mods from settings.json (backup first)', () => { writeSettings(next); ok('settings.json updated') })
+  act('stop the GPU watcher if it is running', stopWatcher)
   for (const m of MODS) act(`delete ${join(MODS_DIR, m)}`, () => rmSync(join(MODS_DIR, m), { recursive: true, force: true }))
-  for (const d of ['flight-recorder', 'local-llm']) act(`delete ${join(CLAUDE_HOME, d)}`, () => rmSync(join(CLAUDE_HOME, d), { recursive: true, force: true }))
-  if (has('--delete-data')) act(`delete the memory database ${MEMORY_HOME}`, () => rmSync(MEMORY_HOME, { recursive: true, force: true }))
-  else say('[info]', `your memory is kept at ${MEMORY_HOME} (add --delete-data to remove it)`)
+  const wipe = has('--delete-data')
+  for (const [d, src] of [['flight-recorder', 'flight-recorder'], ['local-llm', 'local-llm']]) {
+    const dst = join(CLAUDE_HOME, d)
+    if (wipe) act(`delete ${dst} (including its logs and settings)`, () => rmSync(dst, { recursive: true, force: true }))
+    else act(`delete the installed scripts in ${dst} (your logs and config.env stay)`, () => removeInstalledFiles(join(REPO, 'extras', src), dst))
+  }
+  if (wipe) {
+    if (!safeToDeleteMemory()) return fail(`refusing to delete ${MEMORY_HOME}: it does not look like a memory folder (no memory.json or config.json in it)`)
+    act(`delete the memory database ${MEMORY_HOME}`, () => rmSync(MEMORY_HOME, { recursive: true, force: true }))
+  } else say('[info]', `your memory, logs and local-model settings are kept (add --delete-data to remove them); memory is at ${MEMORY_HOME}`)
 }
 
 // ---------- main ----------

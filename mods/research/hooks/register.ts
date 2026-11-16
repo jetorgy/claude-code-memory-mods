@@ -122,22 +122,31 @@ const advance = async ($: any, to?: string): Promise<string> => {
   if (!active || !slug) return 'Research mode is off or has no project. Call research_start first.'
   const st = await loadState($, slug)
   if (!st) return `Project ${slug} has no state.json.`
+  const order = STAGES.map(s => s.id)
+  if (to && !stageById(to)) return `No such stage "${to}". Stages: ${order.join(', ')}.`
   const cur = stageById(st.stage)
   const target = to ? stageById(to) : nextStage(st.stage)
+  const from = cur ? order.indexOf(cur.id) : 0
+  // At the last stage there is no target: check that stage's gate and the claim ledger.
+  const upTo = target ? order.indexOf(target.id) : order.length
+  // Every stage from the current one up to (not including) the target must pass its own gate.
+  for (let i = from; i < upTo; i++) {
+    const s = STAGES[i]
+    if (!s) continue
+    if (s.id === 'collect') {
+      const ev = await readFile($, slug, 'evidence.md')
+      const lines = ev.split('\n').filter(l => /^E\d+\s*\|/.test(l) && !/RETRACT/i.test(l))
+      const full = lines.filter(l => /READ:\s*full/i.test(l)).length
+      if (lines.length === 0 || full * 2 < lines.length) return `Gate not passed: ${full} of ${lines.length} evidence entries are marked "READ: full". Open the best sources with WebFetch (the paper or PDF itself), pass the fetched text to mcp__session-memory__research_ingest, and tag each entry "READ: full" (or "READ: summary" if you could not open it). At least one entry must exist and at least half must be full before leaving collect.`
+    }
+    if (s.gate) {
+      const text = await readFile($, slug, s.gate.file)
+      if (s.gate.needs.some(r => !r.test(text))) return `Gate not passed (${s.title}): ${s.gate.say}. Fix ${dir(slug)}/${s.gate.file}, then retry.`
+    }
+  }
   if (!target) {
     const errs = verifyLedger(await readFile($, slug, 'report.md'), await readFile($, slug, 'evidence.md'))
     return errs.length ? `Claim ledger FAILED (mechanical check):\n- ${errs.join('\n- ')}\nFix report.md, then call research_stage again.` : 'Claim ledger passed: every claim cites existing evidence and its quoted span is found there. The report is the end.'
-  }
-  const order = STAGES.map(s => s.id)
-  if (cur?.id === 'collect' && order.indexOf(target.id) > order.indexOf('collect')) {
-    const ev = await readFile($, slug, 'evidence.md')
-    const lines = ev.split('\n').filter(l => /^E\d+\s*\|/.test(l) && !/RETRACT/i.test(l))
-    const full = lines.filter(l => /READ:\s*full/i.test(l)).length
-    if (lines.length && full * 2 < lines.length) return `Gate not passed: only ${full} of ${lines.length} evidence entries are marked "READ: full". Open the best sources with WebFetch (the paper or PDF itself), pass the fetched text to mcp__session-memory__research_ingest, and tag each entry "READ: full" (or "READ: summary" if you could not open it). At least half must be full before leaving collect.`
-  }
-  if (cur?.gate && order.indexOf(target.id) > order.indexOf(cur.id)) {
-    const text = await readFile($, slug, cur.gate.file)
-    if (cur.gate.needs.some(r => !r.test(text))) return `Gate not passed: ${cur.gate.say}. Fix ${dir(slug)}/${cur.gate.file}, then retry.`
   }
   return enter($, slug, target.id)
 }
@@ -168,16 +177,25 @@ export const register: Register = on => {
   on('tool.call', { tool: 'mcp__research__research_start' }, async ($: any, e: any) => {
     const cur = await isOn($)
     if (!cur.on) return { result: 'Research mode is off. Do not start a project.' }
-    const slug = slugify(String(e.question))
-    await saveState($, { slug, stage: 'clarify', question: String(e.question), created: today() })
-    await append($, slug, 'notebook.md', `# Notebook: ${e.question}\nStarted ${today()}.`)
-    await setOn(true, slug, $)
-    return { result: await enter($, slug, 'clarify') }
+    try {
+      const slug = slugify(String(e.question))
+      const existing = await loadState($, slug)
+      if (existing) {
+        // Never reset the progress of a project that already exists: resume it.
+        await setOn(true, slug, $)
+        return { result: `Project ${slug} already exists; resuming at stage "${stageById(existing.stage)?.title}".\n${await enter($, slug, existing.stage)}` }
+      }
+      await saveState($, { slug, stage: 'clarify', question: String(e.question), created: today() })
+      await append($, slug, 'notebook.md', `# Notebook: ${e.question}\nStarted ${today()}.`)
+      await setOn(true, slug, $)
+      return { result: await enter($, slug, 'clarify') }
+    } catch (err) { return { result: `Could not create the project workspace: ${String(err)}` } }
   })
   on('tool.call', { tool: 'mcp__research__research_log' }, async ($: any, e: any) => {
     const { on: active, slug } = await isOn($)
     if (!active || !slug) return { result: 'Research mode is off or has no project.' }
-    await append($, slug, `${e.file}.md`, `\n## ${today()}\n${e.text}`)
+    if (!['notebook', 'queries', 'evidence'].includes(String(e.file))) return { result: 'file must be notebook, queries or evidence.' }
+    try { await append($, slug, `${e.file}.md`, `\n## ${today()}\n${e.text}`) } catch (err) { return { result: `Could not write the log: ${String(err)}` } }
     // Everything logged also becomes research nodes (about a paragraph each), so nothing is lost.
     let nodes = ''
     try {

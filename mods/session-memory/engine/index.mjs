@@ -17,7 +17,9 @@ const CHUNK = 8 * 1024 * 1024
 function transcripts(cfg) {
   const out = []
   const excluded = cfg.excludeProjects.map(s => s.toLowerCase())
-  for (const dir of readdirSync(ROOT)) {
+  let dirs = []
+  try { dirs = readdirSync(ROOT) } catch { return out } // no sessions folder yet
+  for (const dir of dirs) {
     if (excluded.some(x => dir.toLowerCase().includes(x))) continue
     const full = join(ROOT, dir)
     let entries
@@ -144,7 +146,8 @@ export async function indexAll({ log = () => {} } = {}) {
     const recalls = loadRecalls()
     let files = 0, lines = 0, made = 0
     for (const t of transcripts(cfg)) {
-      const size = statSync(t.path).size
+      let size
+      try { size = statSync(t.path).size } catch { continue } // the file vanished since the listing
       let off = state.files[t.path]?.off ?? 0
       if (off >= size) continue
       files++
@@ -190,8 +193,9 @@ export async function indexAll({ log = () => {} } = {}) {
         if (faded.length) await mem.pool(p).evict(faded)
       }
     }
-    if (files > 0 || movedCold || warmed || marked) { saveMemory(mem); saveState(state) }
+    // Cold storage first: if the run is cut off between the two, a node is in both places, never in neither.
     if (coldDirty) saveCold(cold)
+    if (files > 0 || movedCold || warmed || marked) { saveMemory(mem); saveState(state) }
     if (files > 0 || movedCold || warmed || marked) saveToolIndex(buildToolIndex(mem, cold ?? (state.cold && Object.keys(state.cold).length ? openCold() : null)))
     const nodes = Object.fromEntries(POOLS.map(p => [p, mem.pool(p).size]).filter(([, n]) => n > 0))
     const fixes = mem.pool('failure').list().filter(n => n.metadata.fixedBy).length

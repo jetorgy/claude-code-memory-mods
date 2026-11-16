@@ -15,7 +15,7 @@ const decayFactor = (elapsedMs, priority = 1) => Math.pow(0.5, elapsedMs / (HALF
 export function strengthOf(meta, now = Date.now()) {
   if (!meta?.lastTouched) return 0
   const baseline = meta.baseline ?? 0
-  return baseline + ((meta.strength ?? 0) - baseline) * decayFactor(now - meta.lastTouched, meta.priority ?? 1)
+  return baseline + ((meta.strength ?? 0) - baseline) * decayFactor(Math.max(0, now - meta.lastTouched), meta.priority ?? 1)
 }
 
 /** A real reuse: settle to where it has decayed to, then add one step. */

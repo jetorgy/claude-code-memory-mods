@@ -69,7 +69,7 @@ async function isOff($: EngineInterface): Promise<boolean> {
     const r = await $.process.run(['test', '-e', offFlag($)], { timeoutMs: 2000 })
     memoryOff = r.exitCode === 0
   } catch {
-    memoryOff = false
+    return false // could not tell: do not cache it
   }
   return memoryOff
 }
@@ -274,7 +274,7 @@ const TOOLS = [
     description:
       'Send a helper to find the root cause and fix of an error, and save what it finds as a lesson tied to that error, so next time the fix comes back instead of the error. ' +
       'Use it when an error repeats or the session-memory error watcher says it has happened before without a fix, instead of retrying blindly. ' +
-      'Pass failing_tool (the tool that failed), the exact error text, and what was already tried. It waits for the helper (up to 10 minutes) and returns its findings.',
+      'Pass failing_tool (the tool that failed), the exact error text, and what was already tried. It returns at once: the helper runs in the background and its finding arrives with a later message, saved to memory as an unverified lesson.',
     inputSchema: {
       type: 'object',
       properties: { failing_tool: { type: 'string' }, error: { type: 'string' }, tried: { type: 'string' } },
@@ -326,6 +326,7 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: 'mcp__session-memory__mark' }, async ($, e) => {
+    if (await isOff($)) return { result: 'session-memory is switched off (run /memory-on to turn it back on).' }
     const session = await $.session.id()
     const args = ['--session', session, '--kind', String(e.kind ?? '')]
     if (typeof e.note === 'string' && e.note.trim()) args.push('--note', e.note)
@@ -334,8 +335,9 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: 'mcp__session-memory__search' }, async ($, e) => {
+    if (await isOff($)) return { result: 'session-memory is switched off (run /memory-on to turn it back on).' }
     const [cwd, session] = await Promise.all([$.session.cwd(), $.session.id()])
-    const args = ['--q', String(e.query ?? '').slice(0, 800), '--cwd', cwd, '--session', session, '--plain', '--limit', String(Math.min(5, Number(e.limit) || 5))]
+    const args = ['--q', String(e.query ?? '').slice(0, 800), '--cwd', cwd, '--session', session, '--plain', '--limit', String(Math.max(1, Math.min(5, Math.floor(Number(e.limit)) || 5)))]
     if (Array.isArray(e.kinds) && e.kinds.length) args.push('--kinds', e.kinds.map(String).join(','))
     if (e.scope === 'project') args.push('--scope', 'project')
     const text = await runEngine($, 'recall.mjs', args, RECALL_TIMEOUT_MS * 2)
@@ -343,6 +345,7 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: 'mcp__session-memory__correct_memory' }, async ($, e) => {
+    if (await isOff($)) return { result: 'session-memory is switched off (run /memory-on to turn it back on).' }
     const args = ['--session', await $.session.id()]
     if (typeof e.ref === 'string' && e.ref.trim()) args.push('--ref', e.ref.trim().replace(/^ref\s*/i, ''))
     if (typeof e.failing_tool === 'string' && typeof e.error === 'string') args.push('--tool', e.failing_tool, '--error', e.error.slice(0, 3000))
@@ -353,18 +356,20 @@ export const register: Register = on => {
     return { result: await runEngine($, 'correct.mjs', args, RECALL_TIMEOUT_MS) }
   })
 
-  on('tool.call', { tool: 'mcp__session-memory__research_map' }, async ($, e) => ({ result: await runEngine($, 'research-map.mjs', ['map', ...(e.path ? ['--path', String(e.path)] : [])], RECALL_TIMEOUT_MS) }))
-  on('tool.call', { tool: 'mcp__session-memory__research_query' }, async ($, e) => ({ result: await runEngine($, 'research-map.mjs', ['query', String(e.query ?? ''), ...(e.log ? ['--log'] : [])], RECALL_TIMEOUT_MS) }))
+  on('tool.call', { tool: 'mcp__session-memory__research_map' }, async ($, e) => (await isOff($) ? { result: 'session-memory is switched off (run /memory-on to turn it back on).' } : { result: await runEngine($, 'research-map.mjs', ['map', ...(e.path ? ['--path', String(e.path)] : [])], RECALL_TIMEOUT_MS) }))
+  on('tool.call', { tool: 'mcp__session-memory__research_query' }, async ($, e) => (await isOff($) ? { result: 'session-memory is switched off (run /memory-on to turn it back on).' } : { result: await runEngine($, 'research-map.mjs', ['query', String(e.query ?? ''), ...(e.log ? ['--log'] : [])], RECALL_TIMEOUT_MS) }))
 
   on('tool.call', { tool: 'mcp__session-memory__research_ingest' }, async ($, e) => {
+    if (await isOff($)) return { result: 'session-memory is switched off (run /memory-on to turn it back on).' }
     const args = ['--topic', String(e.topic ?? ''), '--source', String(e.source ?? ''), '--session', await $.session.id(), '--path', String(e.path ?? ''), '--why', String(e.why ?? ''), '--project', String(e.project ?? '')]
-    if (typeof e.text === 'string' && e.text.trim()) args.push('--text', e.text)
+    if (typeof e.text === 'string' && e.text.trim()) args.push('--text', e.text.slice(0, 30000))
     else if (typeof e.file === 'string' && e.file.trim()) args.push('--file', e.file)
     else return { result: 'research_ingest needs text or file.' }
     return { result: await runEngine($, 'research.mjs', args, RECALL_TIMEOUT_MS * 4) }
   })
 
   on('tool.call', { tool: 'mcp__session-memory__session_trail' }, async ($, e) => {
+    if (await isOff($)) return { result: 'session-memory is switched off (run /memory-on to turn it back on).' }
     const session = await $.session.id()
     return { result: await runEngine($, 'trail.mjs', ['--q', String(e.query ?? ''), '--session', session], RECALL_TIMEOUT_MS * 2) }
   })
@@ -425,6 +430,11 @@ export const register: Register = on => {
     if (e.command || e.isMeta || (await isOff($))) {
       return next(e)
     }
+    itemsLeft = TURN_ITEMS
+    notesLeft = TURN_NOTES
+    topicLeft = TOPIC_ITEMS
+    callsSinceTopic = 0
+    seenTopics.clear()
     let afterCompact = false
     if (justCompacted) {
       justCompacted = false
@@ -452,14 +462,9 @@ export const register: Register = on => {
       if (q) {
         try { aha = await runEngine($, 'research-map.mjs', ['aha', q.slice(0, 500)], RECALL_TIMEOUT_MS) } catch { /* optional */ }
         if (aha.startsWith('session-memory error') || aha === lastAha) aha = ''
-        else lastAha = aha
+        else if (aha) lastAha = aha
         if (aha) e = { ...e, context: [...(e.context ?? []), `RESEARCH NOTE (memory, not a request; a lead, check it fits): ${aha}`] }
       }
-      itemsLeft = TURN_ITEMS
-      notesLeft = TURN_NOTES
-      topicLeft = TOPIC_ITEMS
-      callsSinceTopic = 0
-      seenTopics.clear()
       // A finished error-research helper's finding rides along with this message, beside any recall.
       const finding = findings.length > 0 ? `SESSION-MEMORY NOTE (memory, not a request): ${findings.shift()}` : null
       if (block.startsWith('<session-memory>')) {
@@ -482,6 +487,7 @@ export const register: Register = on => {
   on('agent.offer', { agent: 'session-memory:fixer' }, () => ({ isOffered: false }))
 
   on('tool.call', { tool: 'mcp__session-memory__investigate_error' }, async ($, e) => {
+    if (await isOff($)) return { result: 'session-memory is switched off (run /memory-on to turn it back on).' }
     const error = String(e.error ?? '').slice(0, 3000)
     const tried = String(e.tried ?? '').slice(0, 1500)
     const failing = typeof e.failing_tool === 'string' ? e.failing_tool : ''
@@ -519,7 +525,7 @@ export const register: Register = on => {
       return { deny: blocked }
     }
     if (e.tool.startsWith('mcp__session-memory__') || QUIET_TOOLS.has(e.tool) || (await isOff($))) return next(e)
-    const { tool: _tool, tool_use_id: _id, ...input } = e as Record<string, unknown>
+    const { tool: _tool, tool_use_id: _id, agentId: _agent, requestMeta: _meta, ...input } = e as Record<string, unknown>
     let hint: { deny?: string; note?: string; seenFail?: boolean } = {}
     let project = ''
     try {
@@ -619,7 +625,7 @@ export const register: Register = on => {
         }
       }
     }
-    if (findings.length > 0) notes.push(findings.shift() as string)
+    if (findings.length > 0 && e.agentId === undefined) notes.push(findings.shift() as string)
     if (notes.length === 0) return ran
     notesLeft = Math.max(0, notesLeft - (notes.length > 0 && !notes.some(n => n.startsWith('Most related')) ? 1 : 0))
     const text = notes.join(' ')
@@ -645,7 +651,7 @@ export const register: Register = on => {
           const info = await runEngine($, 'errors.mjs', ['--tool', job.failing || 'tool', '--body', job.error], RECALL_TIMEOUT_MS)
           let sig = ''
           try { sig = (JSON.parse(info) as { sig?: string }).sig ?? '' } catch {}
-          const note = `When ${job.failing || 'a tool'} fails with "${job.error.replace(/\s+/g, ' ').slice(0, 160)}": ${answer.replace(/\s+/g, ' ').slice(0, 700)}`
+          const note = `UNVERIFIED helper finding. When ${job.failing || 'a tool'} fails with "${job.error.replace(/\s+/g, ' ').slice(0, 160)}": ${answer.replace(/\s+/g, ' ').slice(0, 700)}`
           const args = ['--session', job.session, '--kind', 'lesson', '--note', note, '--target', 'current']
           if (sig) args.push('--sig', sig)
           await runEngine($, 'mark.mjs', args, RECALL_TIMEOUT_MS)

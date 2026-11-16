@@ -5,7 +5,7 @@
 Four Claude Code mods that give Claude a working memory of your own past sessions, keep long conversations light, and spend models sensibly:
 
 * **session-memory**: a searchable memory of every saved session, recalled by relevance before each message; lessons from past errors; a sliding window of recent exchanges after each compaction; auto-compaction at 150k tokens; `/memory-off` and `/memory-on`.
-* **model-selector**: keeps the chat on Sonnet (switch with `/route model <name>`), sets effort per message; nudges Claude to ask when a request is vague and to web-search when it is stuck; optional private local model for the small jobs.
+* **model-selector**: sets effort per message, shows a status line and notes when another model would fit (it assumes Sonnet; it does not switch your real model, `/model` does); nudges Claude to ask when a request is vague and to web-search when it is stuck; optional private local model for the small jobs.
 * **subagent-router**: helper agents on Haiku or Sonnet, at most four at once.
 * **research**: a switchable research workflow (clarify, protocol, collect, appraise, iterate, synthesize) with a notebook on disk. Web results are saved into a research pool in session-memory, repeat searches are held, and a map shows which topics connect.
 
@@ -34,7 +34,7 @@ What I can say in its favour:
 ## Install (by hand)
 
 ```bash
-git clone --depth 1 --branch v1.1.2 https://github.com/jetorgy/claude-code-memory-mods
+git clone --depth 1 --branch v1.2.0 https://github.com/jetorgy/claude-code-memory-mods
 cd claude-code-memory-mods
 tools/verify.sh                          # compare every file with CHECKSUMS.sha256
 node install/install.mjs --dry-run       # shows every change, makes none
@@ -49,7 +49,7 @@ Then run `/reload-plugins` inside Claude Code. Needs Node 18 or newer and npm. *
 |---|---|
 | `/memory-off` / `/memory-on` | Switch the memory mod off or on. It stays that way after a restart. Nothing is deleted. |
 | `/recall <words>` | Search your past sessions. `/recall active`, `/recall stats`, `/recall index` also work. |
-| `/route` | Control the model selector. `/route model haiku\|sonnet\|opus\|fable` changes the session model (it starts on Sonnet). |
+| `/route` | Control the model selector. `/route model haiku\|sonnet\|opus\|fable` only tells the mod which model you are on (status text and notes); it does not switch the model, use `/model` for that. |
 | `/local on\|off\|auto\|status\|start\|free` | Control the optional local model. `free` releases its GPU memory now. |
 
 ## The optional local model

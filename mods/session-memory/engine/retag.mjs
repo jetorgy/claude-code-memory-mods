@@ -27,7 +27,8 @@ let changed = 0
 for (const n of nodes) {
   const md = n.metadata || (n.metadata = {})
   const old = String(md.path || `research/${md.topic || ''}`)
-  const hit = RULES.find(([re]) => re.test(old.toLowerCase()))
+  const done = RULES.some(([, to]) => to === old) // already tagged by an earlier run: leave it
+  const hit = done ? [null, old] : RULES.find(([re]) => re.test(old.toLowerCase()))
   const next = hit ? hit[1] : `research/other/${slug(old.replace(/^research\//, '')) || 'misc'}`
   if (!md.why) md.why = `gathered for: ${md.rproject || md.topic || old}`.slice(0, 200)
   if (md.oldPath === undefined && next !== old) md.oldPath = old

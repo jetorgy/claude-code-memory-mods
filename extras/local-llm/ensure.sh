@@ -26,8 +26,14 @@ if up; then echo up; exit 0; fi
 if [ -n "$OLLAMA_MODELS" ] && [ ! -d "$OLLAMA_MODELS" ]; then echo "failed:models folder not available ($OLLAMA_MODELS)"; exit 0; fi
 
 # A GPU is optional: with none, Ollama still runs the model on the CPU (slower; the mods then prefer Haiku).
-env OLLAMA_HOST=$HOST ${OLLAMA_MODELS:+OLLAMA_MODELS=$OLLAMA_MODELS} OLLAMA_KEEP_ALIVE=30m \
-  setsid nohup "$OLLAMA" serve >"${TMPDIR:-/tmp}/local-llm.log" 2>&1 </dev/null &
+LOG="$HERE/server.log"
+if [ -n "$OLLAMA_MODELS" ]; then
+  env "OLLAMA_HOST=$HOST" "OLLAMA_MODELS=$OLLAMA_MODELS" OLLAMA_KEEP_ALIVE=30m \
+    setsid nohup "$OLLAMA" serve >"$LOG" 2>&1 </dev/null &
+else
+  env "OLLAMA_HOST=$HOST" OLLAMA_KEEP_ALIVE=30m \
+    setsid nohup "$OLLAMA" serve >"$LOG" 2>&1 </dev/null &
+fi
 
 for _ in $(seq 1 24); do up && break; sleep 0.5; done
 if up; then
@@ -39,5 +45,5 @@ if up; then
   fi
   echo started
 else
-  echo "failed:server did not answer (see ${TMPDIR:-/tmp}/local-llm.log)"
+  echo "failed:server did not answer (see $HERE/server.log)"
 fi

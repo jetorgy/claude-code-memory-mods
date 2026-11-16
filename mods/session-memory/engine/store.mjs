@@ -73,7 +73,7 @@ export const DEFAULT_CONFIG = {
   // 'all' = every project (current one first); 'project' = only the current project.
   scope: 'all',
   // Optional: path fragment -> group name, e.g. {"solidcraft": "CAD"}. Otherwise the group is the
-  // drive or top folder the project lives in (Asteres_Archivum, Desktop, home).
+  // drive or top folder the project lives in (a drive name, Desktop, home).
   groups: {},
   // Cold storage: a memory older than this whose strength has faded below coldBelow moves out of
   // active memory. Nothing is deleted; using it again brings it back.
@@ -89,7 +89,12 @@ export const DEFAULT_CONFIG = {
 export const CONTENT_POOLS = ['lesson', 'request', 'correction', 'response', 'thinking', 'tool_call', 'failure', 'success', 'image']
 
 export function loadConfig() {
-  try { return { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) } } catch { return { ...DEFAULT_CONFIG } }
+  try {
+    const user = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'))
+    // The built-in exclusions always stay; your list adds to them.
+    const ex = Array.isArray(user.excludeProjects) ? user.excludeProjects.map(String) : []
+    return { ...DEFAULT_CONFIG, ...user, excludeProjects: [...new Set([...(DEFAULT_CONFIG.excludeProjects || []), ...ex])] }
+  } catch { return { ...DEFAULT_CONFIG } }
 }
 
 export function ensureHome() {
@@ -103,19 +108,30 @@ export function openMemory({ onEvict } = {}) {
   ensureHome()
   const mem = new LiminalMemory({ defaultPool: 'request', ...(onEvict ? { onEvict } : {}) })
   for (const p of POOLS) mem.pool(p)
-  if (existsSync(MEM_PATH)) mem.load(JSON.parse(readFileSync(MEM_PATH, 'utf8')))
+  if (existsSync(MEM_PATH)) {
+    try { mem.load(JSON.parse(readFileSync(MEM_PATH, 'utf8'))) } catch (e) {
+      // A damaged store is moved aside (never deleted) and the memory starts empty; the indexer rebuilds it from your sessions.
+      try { renameSync(MEM_PATH, `${MEM_PATH}.corrupt-${Date.now()}`) } catch {}
+      console.error(`session-memory: memory file was unreadable (${e.message}); kept as a .corrupt file, starting fresh`)
+    }
+  }
   return mem
 }
 
 export function openCold() {
   const cold = new LiminalMemory({ defaultPool: 'request' })
   for (const p of POOLS) cold.pool(p)
-  if (existsSync(COLD_PATH)) cold.load(JSON.parse(gunzipSync(readFileSync(COLD_PATH)).toString('utf8')))
+  if (existsSync(COLD_PATH)) {
+    try { cold.load(JSON.parse(gunzipSync(readFileSync(COLD_PATH)).toString('utf8'))) } catch (e) {
+      try { renameSync(COLD_PATH, `${COLD_PATH}.corrupt-${Date.now()}`) } catch {}
+      console.error(`session-memory: cold storage was unreadable (${e.message}); kept as a .corrupt file, starting fresh`)
+    }
+  }
   return cold
 }
 
 function writeAtomic(path, text) {
-  const tmp = `${path}.tmp`
+  const tmp = `${path}.tmp-${process.pid}`
   writeFileSync(tmp, text, { mode: 0o600 })
   renameSync(tmp, path)
 }

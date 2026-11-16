@@ -76,7 +76,7 @@ Corrections overlay file:
 $ python3 -c "import json,os; c=json.load(open(os.path.expanduser('~/.claude/session-memory/corrections.json'))); print(len(c)); [print(k, v['fix'][:60]) for k,v in c.items()]"
 2
 tr:toolu_01Sg... Write only overwrites a file already Read in this session: Read it first (a file
-a:2dffe1fc-ac44-... To start Blender: it is installed through Steam on the Phoenix drive. Run `cd /m
+a:2dffe1fc-ac44-... To start Blender: it is installed through Steam on the external drive. Run `cd /m
 ```
 
 Each entry has `fix` or `forget`, `ts`, `session` and optionally `why`.

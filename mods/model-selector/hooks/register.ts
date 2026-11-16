@@ -54,12 +54,12 @@ export function fromGrade(g: Grade): Pick {
   let why = g.why
   let model = g.need === 'chat' ? undefined : MODEL_FOR[g.need]
   // "Jobs you repeat rarely need a bigger model": a repeated non-ambitious job runs on Sonnet.
-  if (g.repeat && model !== undefined && tierOf(model) === 2) {
+  if (!TIERS.includes(ONLY) && g.repeat && model !== undefined && tierOf(model) === 2) {
     model = 'sonnet'
     why += ' (repeat job)'
   }
   // Haiku is weak at judgment calls; when a mistake is costly use at least Sonnet.
-  if (g.costlyMistake && model === 'haiku' && g.need !== 'clarify') model = 'sonnet'
+  if (!TIERS.includes(ONLY) && g.costlyMistake && model === 'haiku' && g.need !== 'clarify') model = 'sonnet'
 
   // Effort: ask the four questions in order and stop at the first yes.
   let effort: Effort
@@ -144,7 +144,7 @@ const LOCAL_URL = 'http://127.0.0.1:11435/api/chat'
 const LOCAL_MODEL = 'gemma4:e4b' // the public Ollama tag (about 9.6 GB)
 const localEnsure = ($: EngineInterface): string => `${$.plugin.root}/../../local-llm/ensure.sh`
 const LOCAL_FULL_GPU_MB = 11500 // a card with at least this much total memory holds the whole model: force every layer onto it
-const LOCAL_MIN_FREE_MB = 4500 // auto mode: the model (about 3.1 GB) plus headroom must fit in the GPU memory nobody else is using
+const LOCAL_MIN_FREE_MB = 4500 // auto mode: the model (about 9.6 GB; on a smaller card Ollama puts the rest on the CPU) plus headroom must fit in the GPU memory nobody else is using
 const LOCAL_IDLE = '3m' // unload this long after the last small job, so an idle session holds no GPU memory
 type LocalMode = 'auto' | 'on' | 'off'
 let localMode: LocalMode = 'auto'
@@ -344,8 +344,8 @@ async function pollEffort($: EngineInterface, level: Effort, activity: string[],
 
 export const register: Register = on => {
   let mode: Mode = 'auto'
-  // The session model starts on Sonnet and stays there; only `/route model <name>` changes it.
-  let sessionModel: string | undefined = 'sonnet'
+  // The session model is the name the mod THINKS the chat is on (status text and toasts). It does not switch the real model; Claude Code's own /model does.
+  let sessionModel: string | undefined = TIERS.includes(ONLY) ? ONLY : 'sonnet'
   let chosen: Pick | undefined
   const recent: string[] = []
   let lastAnswerMem = '' // the tail of Claude's last reply, so the grader can tell a continuation from a new request
@@ -417,7 +417,7 @@ export const register: Register = on => {
       const m = pick[1].toLowerCase()
       if (!TIERS.includes(m)) return { text: `model: choose one of ${TIERS.join(', ')}` }
       sessionModel = m
-      return { text: `model-selector: session model set to ${m}` }
+      return { text: `model-selector: session model noted as ${m}. This does NOT switch the model Claude Code runs; change that with Claude Code's own /model command. The mod only uses this name for its status line and its "would fit better" notes.` }
     }
     if (arg === 'auto' || arg === 'always' || arg === 'suggest' || arg === 'off') {
       mode = arg

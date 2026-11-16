@@ -45,9 +45,14 @@ export const register: Register = on => {
     if (started.length >= MAX_RUNNING) {
       return { deny: `sub-agent limit reached (${MAX_RUNNING} running). Wait for one to finish, or do this step yourself.` }
     }
-    // Respect an explicit choice by the caller, unless it asks for Opus.
+    // Reserve the slot now, before any await, so parallel spawns cannot all pass the check.
+    const slot = Date.now()
+    started.push(slot)
+    const release = (): void => { const i = started.indexOf(slot); if (i !== -1) started.splice(i, 1) }
+    try {
+    // Respect an explicit choice by the caller: Haiku or Sonnet only (never Opus or other costly tiers).
     const asked = e.model
-    const keepAsked = asked !== undefined && asked !== 'inherit' && !/opus/i.test(asked)
+    const keepAsked = asked !== undefined && asked !== 'inherit' && /^(haiku|sonnet)/i.test(asked)
     let pick: { model: string; why: string } | undefined = keepAsked ? { model: asked, why: 'caller chose' } : byType(e.subagentType)
 
     if (pick === undefined) {
@@ -67,13 +72,14 @@ export const register: Register = on => {
 
     $.ui.toast(`sub-agent ${e.subagentType} → ${pick.model} (${pick.why})`)
     const ran = await next({ ...e, model: pick.model })
-    if (ran.deny === undefined) started.push(Date.now())
+    if (ran.deny !== undefined) release()
     return ran
+    } catch (err) { release(); throw err }
   })
 
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
-    return { sections: [...r.sections, { id: 'subagent-router:split', text: NUDGE, scope: 'session' }] }
+    return { ...r, sections: [...r.sections, { id: 'subagent-router:split', text: NUDGE, scope: 'session' }] }
   })
 
   on('turn.complete', ($, e, next) => {

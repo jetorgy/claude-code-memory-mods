@@ -7,7 +7,7 @@ This is the entry point for people and for AI agents. It says what the project i
 Four Claude Code "mods" (plugins) that give Claude a memory of your own past sessions and a few guard rails:
 
 - **session-memory** reads your saved sessions into a searchable memory, attaches the few best matches to each message, remembers failed tool calls and their fixes, and compacts the chat at 150,000 tokens.
-- **model-selector** keeps the chat on Sonnet (`/route model <name>` switches), sets effort per message, adds short guidance notes, and can use an optional local model for small jobs.
+- **model-selector** sets effort per message, shows which model would fit (it assumes Sonnet and does not switch your real model; `/model` does), adds short guidance notes, and can use an optional local model for small jobs.
 - **subagent-router** puts helper agents on Haiku or Sonnet and allows four at once.
 - **research** is a switchable research workflow with a notebook on disk, plus a research pool in memory.
 

@@ -1,6 +1,6 @@
 # Why the main model is pinned to Sonnet and helpers are limited
 
-One line: the main chat model starts pinned to Sonnet and only changes when you ask (`/route model <haiku|sonnet|opus|fable>`); the mod sets an effort level per prompt, and helper agents are limited to Haiku or Sonnet and at most 4 at a time.
+One line: the mod assumes the chat is on Sonnet and never switches the real model (`/route model <name>` only changes the name it assumes; Claude Code's `/model` switches the real one); it sets an effort level per prompt, and helper agents are limited to Haiku or Sonnet and at most 4 at a time.
 
 Related: [../model-selector/overview.md](../model-selector/routing.md), [../reference/configuration.md](../reference/configuration.md), [private-local-ollama.md](private-local-ollama.md), [auto-compact-150k.md](auto-compact-150k.md)
 
@@ -14,10 +14,10 @@ Model selector:
 - Grading tries the local model first (see [private-local-ollama.md](private-local-ollama.md)), then Haiku.
 - `POLL_EVERY = 4` steps for the periodic re-check during long agent work.
 
-Current behaviour: the session model always starts as Sonnet. In auto mode it stays Sonnet unless you switch it with `/route model <name>`; only the effort follows each prompt. The need-to-model table above applies in always mode. The owner chose this pin so the router never silently moves the main chat to a different model; to change the main model, ask for it.
+Current behaviour: the mod assumes the session model is Sonnet. In auto mode that assumption only changes if you run `/route model <name>` (which does not switch the real model; use `/model`); only the effort follows each prompt. The need-to-model table above applies in always mode. The owner chose this pin so the router never silently moves the main chat to a different model; to change the main model, ask for it.
 
 Two modes:
-- auto: the model is the Sonnet pin (or whatever you set with `/route model`); only the effort follows each prompt, to protect the prompt cache.
+- auto: the assumed model is Sonnet (or whatever you set with `/route model`, which is a note, not a switch); only the effort follows each prompt, to protect the prompt cache.
 - always: re-picks the model on every prompt. A switch re-reads the whole chat at full price, so this costs more.
 
 Subagent router:

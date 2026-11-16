@@ -5,7 +5,7 @@
 //   node research-map.mjs aha "<task text>"     one line: research categories that touch this task
 import { appendFileSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { openMemory, HOME } from './store.mjs'
+import { openMemory, HOME, ensureHome } from './store.mjs'
 
 const QLOG = join(HOME, 'research-queries.jsonl')
 const STOP = new Set('the a an and or of to in on for with is are was were be by as at it this that from which can not but have has had their its than then into more most such also these those using used use may our we they them his her one two per via over under between within without about when what how why who whom'.split(' '))
@@ -101,7 +101,7 @@ else if (cmd === 'query') {
   const q = rest.filter(x => !x.startsWith('--')).join(' ')
   const s = similar(q)
   console.log(s ? `REPEAT: ${Math.round(s.j * 100)}% match with a query run ${s.r.ts}: "${s.r.q}". Its results are already in the research pool; search memory first.` : 'New query.')
-  if (rest.includes('--log')) appendFileSync(QLOG, JSON.stringify({ ts: new Date().toISOString().slice(0, 10), q }) + '\n')
+  if (rest.includes('--log')) ensureHome(), appendFileSync(QLOG, JSON.stringify({ ts: new Date().toISOString().slice(0, 10), q }) + '\n')
 } else if (cmd === 'aha') {
   const text = rest.join(' ')
   const t = new Set(terms(text))
