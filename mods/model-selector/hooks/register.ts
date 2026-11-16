@@ -354,14 +354,21 @@ export const register: Register = on => {
   let failuresSincePoll = 0
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({
-      name: 'route',
-      description: 'Model selector: /route auto|always|suggest|off',
-    })
-    await $.command.register({
-      name: 'local',
-      description: 'Local GPU model for cheap jobs: /local auto|on|off|status|start',
-    })
+    rec($, 'session_start', { step: 'entered' })
+    try {
+      await $.command.register({
+        name: 'route',
+        description: 'Model selector: /route auto|always|suggest|off',
+      })
+      rec($, 'session_start', { step: 'route registered' })
+      await $.command.register({
+        name: 'local',
+        description: 'Local GPU model for cheap jobs: /local auto|on|off|status|start',
+      })
+      rec($, 'session_start', { step: 'local registered' })
+    } catch (err) {
+      rec($, 'session_start', { step: 'register failed', error: String(err).slice(0, 300) })
+    }
     // Start the local model if it is not running, and say so if it cannot be started.
     if (localMode !== 'off') {
       void $.process
