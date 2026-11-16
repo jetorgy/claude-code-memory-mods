@@ -54,7 +54,6 @@ Grading is a tiny job (classify a prompt). The local model costs nothing and sen
 - The grader can be wrong. A mislabelled hard prompt on Haiku gives a worse answer; you can override the model yourself.
 - The mapping (need to model) is a hand-written table, not learned.
 - Not measured: how often the grader agrees with a human, or how much money it saves. The owner has not run that comparison; see [vibe-coded-and-limits.md](vibe-coded-and-limits.md).
-- A code comment in `register.ts` says the local model stays loaded "30 minutes"; the code uses a 3 minute keep-alive. The code is what runs.
 
 ## Alternatives and trade-offs
 

@@ -381,7 +381,7 @@ export const register: Register = on => {
     const arg = e.args.trim()
     if (arg === 'auto' || arg === 'on' || arg === 'off') {
       localMode = arg
-      // Off hands the GPU back at once (otherwise the model stays loaded for 30 minutes after its last use).
+      // Off hands the GPU back at once (otherwise the model stays loaded for its 3 minute keep-alive after its last use).
       if (arg === 'off') await localUnload($)
       return { text: `local model: ${localMode}${arg === 'off' ? ' (model unloaded, GPU memory released)' : ''}` }
     }

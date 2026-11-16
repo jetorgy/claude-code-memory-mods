@@ -45,7 +45,6 @@ This is working, tested-by-use software, not a validated system.
 ## Known doc/code disagreements found while writing these pages
 
 - `docs/HOW-IT-WORKS.md` says the window starts at 40 and tunes between 10 and 80; the code has 20 and 6 to 40 with a 40,000 character cap.
-- A comment in `model-selector/hooks/register.ts` says the local model stays loaded 30 minutes; the code is 3 minutes.
 - The old docs read as if model routing happens on every message; in auto mode it happens once and only effort follows.
 - Notes mention `gemma4:12b` being used earlier; the code uses `gemma4:e4b`.
 - The strength constants (+0.15, 7 day half-life, 20 reuses) do agree with the old doc.

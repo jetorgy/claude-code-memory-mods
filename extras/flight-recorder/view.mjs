@@ -7,7 +7,7 @@ const a = process.argv.slice(2)
 const arg = k => { const i = a.indexOf(k); return i === -1 ? undefined : a[i + 1] }
 const dir = dirname(fileURLToPath(import.meta.url))
 let rows = []
-try { rows = readFileSync(join(dir, 'log.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) } catch {}
+try { rows = readFileSync(join(dir, 'log.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) } catch {}
 const since = arg('--since')
 if (since) {
   const m = since.match(/^(\d+)([mhd])$/)

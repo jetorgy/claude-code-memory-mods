@@ -73,7 +73,6 @@ Hooks on `WebSearch` and `WebFetch` (in `mods/session-memory/hooks/register.ts`)
 ## Known limits
 
 * Not yet tested: auto-save of `WebFetch` results, and the `research/web` fallback when no project is active. The code path exists for both.
-* The active-project lookup in the auto-save reads a state file at a fixed path (`/home/josh/.claude/research-mod-state.json`), not the Claude home folder setting. On another machine or home folder it silently finds no project and saves under `web`.
 * Splitting is by blank lines and length. Text with no blank lines (a web page flattened into one line) becomes length-based chunks that may cut mid-thought.
 * Saved web text is whatever the tool returned, which for WebFetch is a digest, not the original page.
 * Duplicates are detected by exact text only.

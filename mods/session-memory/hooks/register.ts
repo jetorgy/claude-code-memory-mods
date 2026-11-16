@@ -177,7 +177,7 @@ async function autoIngest($: EngineInterface, e: Record<string, unknown>, ran: a
     const text = String(ran?.text ?? '')
     if (text.length < 200 || ran?.isError) return ran
     let slug = ''
-    try { const f = JSON.parse(await $.fs.read('/home/josh/.claude/research-mod-state.json')); if (f?.on && f.slug) slug = String(f.slug) } catch { /* no project */ }
+    try { const f = JSON.parse(await $.fs.read(`${$.plugin.root}/../../research-mod-state.json`)); if (f?.on && f.slug) slug = String(f.slug) } catch { /* no project */ }
     const q = String(e.query ?? e.url ?? '')
     const args = ['--topic', slug || 'web', '--source', q.slice(0, 300), '--session', await $.session.id(), '--path', slug ? `research/${slug}` : 'research/web', '--why', `auto-saved ${String(e.tool)} result`, '--text', text.slice(0, 100000)]
     void runEngine($, 'research.mjs', args, RECALL_TIMEOUT_MS * 4).catch(() => {})
@@ -189,6 +189,7 @@ async function autoIngest($: EngineInterface, e: Record<string, unknown>, ran: a
 const repeatHeld = new Set<string>()
 
 async function webTool($: EngineInterface, e: Record<string, unknown>, next: (e: any) => Promise<any>): Promise<any> {
+  if (await isOff($)) return next(e)
   const key = String(e.query ?? e.url ?? '')
   let repeat = ''
   try {

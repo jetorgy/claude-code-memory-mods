@@ -39,7 +39,7 @@ Evidence level: from the code; no owner history was found, so the reasons are in
 
 ## Why it unloads quickly
 
-`keep_alive '3m'` frees GPU memory three minutes after the last use. `gpuwatch.mjs` polls every 2 seconds, exits after 60 seconds idle, and can unload only the mods' own two models (`keep_alive 0`). It will not touch other loaded models. A comment in `model-selector/hooks/register.ts` says "30 minutes" but the code uses 3m; the code is what runs (flagged as a doc mismatch).
+`keep_alive '3m'` frees GPU memory three minutes after the last use. `gpuwatch.mjs` polls every 2 seconds, exits after 60 seconds idle, and can unload only the mods' own two models (`keep_alive 0`). It will not touch other loaded models.
 
 ## Why `think: false`, `num_ctx 4096`, `-m 4`
 
